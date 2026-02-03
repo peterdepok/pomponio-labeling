@@ -1,18 +1,23 @@
-import type { UnitEconomicsInputs, WeeklyActual } from '../types';
+import type { UnitEconomicsInputs, WeeklyActual, WholesaleState } from '../types';
 import {
   evaluateMilestoneStatus,
   generateRecommendation,
   formatCurrency,
+  formatNumber,
 } from '../utils/calculations';
+import { calculateWholesaleOutputs } from '../utils/wholesaleCalculations';
 import { MILESTONES } from '../utils/constants';
 import { TrafficLight, MetricCard } from './shared';
 
 interface DecisionFrameworkProps {
   actuals: WeeklyActual[];
   unitEconomics: UnitEconomicsInputs;
+  wholesale: WholesaleState;
 }
 
-export function DecisionFramework({ actuals, unitEconomics }: DecisionFrameworkProps) {
+export function DecisionFramework({ actuals, unitEconomics, wholesale }: DecisionFrameworkProps) {
+  const wholesaleOutputs = calculateWholesaleOutputs(wholesale);
+  const groundToWholesale = wholesaleOutputs.poundsPerCategory.ground * (wholesale.channelAllocation.ground.wholesale / 100);
   const milestoneStatuses = evaluateMilestoneStatus(actuals, unitEconomics);
   const recommendation = generateRecommendation(milestoneStatuses);
 
@@ -193,6 +198,68 @@ export function DecisionFramework({ actuals, unitEconomics }: DecisionFrameworkP
           </div>
         </div>
       </div>
+
+      {/* Wholesale Program Milestones */}
+      <h3 className="text-lg font-semibold mb-4 mt-8 text-[var(--color-text-primary)]">Wholesale Program Milestones</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <WholesaleMilestoneCard
+          title="Wholesale Account Secured"
+          target="1 account at 500 lbs/week"
+          status={wholesaleOutputs.wholesaleAccountsRequired >= 1 ? 'yellow' : 'red'}
+          currentValue="Pipeline active"
+          description="First wholesale account for ground beef volume"
+        />
+        <WholesaleMilestoneCard
+          title="Ground Volume Flowing"
+          target="2,000 lbs/month wholesale"
+          status={groundToWholesale >= 2000 ? 'green' : groundToWholesale >= 1000 ? 'yellow' : 'red'}
+          currentValue={`${formatNumber(groundToWholesale, 0)} lbs/mo`}
+          description="Consistent ground beef movement through wholesale"
+        />
+        <WholesaleMilestoneCard
+          title="Premium Inventory Built"
+          target="50 lbs premium + ultra available"
+          status={wholesaleOutputs.premiumCutsForCaldera >= 50 ? 'green' : wholesaleOutputs.premiumCutsForCaldera >= 25 ? 'yellow' : 'red'}
+          currentValue={`${wholesaleOutputs.premiumCutsForCaldera} lbs/mo`}
+          description="Premium cuts available for Caldera boxes"
+        />
+        <WholesaleMilestoneCard
+          title="Combo Model Active"
+          target="Net/animal above $1,500"
+          status={wholesaleOutputs.scenarioProfit.combo >= 1500 ? 'green' : wholesaleOutputs.scenarioProfit.combo >= 1000 ? 'yellow' : 'red'}
+          currentValue={formatCurrency(wholesaleOutputs.scenarioProfit.combo)}
+          description="Multi-channel strategy delivering target economics"
+        />
+      </div>
+    </div>
+  );
+}
+
+interface WholesaleMilestoneCardProps {
+  title: string;
+  target: string;
+  status: 'green' | 'yellow' | 'red' | 'pending';
+  currentValue: string;
+  description: string;
+}
+
+function WholesaleMilestoneCard({ title, target, status, currentValue, description }: WholesaleMilestoneCardProps) {
+  const borderColor = {
+    green: 'border-[var(--color-success)]',
+    yellow: 'border-[var(--color-warning)]',
+    red: 'border-[var(--color-danger)]',
+    pending: 'border-[var(--color-accent)]',
+  }[status];
+
+  return (
+    <div className={`bg-[var(--color-secondary-bg)] rounded-lg p-4 border-l-4 ${borderColor}`}>
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-sm font-medium text-[var(--color-text-primary)]">{title}</h4>
+        <TrafficLight status={status} size="small" />
+      </div>
+      <div className="text-xl font-bold text-[var(--color-text-primary)] mb-1">{currentValue}</div>
+      <div className="text-xs text-[var(--color-text-secondary)] mb-2">Target: {target}</div>
+      <p className="text-xs text-[var(--color-text-secondary)]">{description}</p>
     </div>
   );
 }

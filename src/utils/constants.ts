@@ -1,4 +1,4 @@
-import type { UnitEconomicsInputs, ScenarioConfig, Milestone } from '../types';
+import type { UnitEconomicsInputs, ScenarioConfig, Milestone, WholesaleState } from '../types';
 
 export const DEFAULT_UNIT_ECONOMICS: UnitEconomicsInputs = {
   boxPrice: 150,
@@ -94,3 +94,21 @@ export const INFRASTRUCTURE_ASSETS = [
     valueUnlocked: 'Cost offset ($1.5K-2K/mo)',
   },
 ];
+
+export const DEFAULT_WHOLESALE: WholesaleState = {
+  animalsPerMonth: 5,
+  liveWeight: 1300,
+  costPerPound: 1.60,
+  harvestFee: 70,
+  processingCost: 556,
+  prices: {
+    ground: { wholesale: 6.00, retail: 7.00 },
+    premium: { wholesale: 9.00, retail: 19.00 },
+    ultraPremium: { wholesale: 14.00, retail: 36.00 },
+  },
+  channelAllocation: {
+    ground: { wholesale: 70, retail: 20, online: 10, caldera: 0 },
+    premium: { wholesale: 20, retail: 40, online: 20, caldera: 20 },
+    ultraPremium: { wholesale: 0, retail: 30, online: 30, caldera: 40 },
+  },
+};

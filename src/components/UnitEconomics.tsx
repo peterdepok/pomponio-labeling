@@ -1,4 +1,4 @@
-import type { UnitEconomicsInputs } from '../types';
+import type { UnitEconomicsInputs, WholesaleState } from '../types';
 import {
   calculateUnitEconomics,
   getLtvCacStatus,
@@ -7,17 +7,24 @@ import {
   formatNumber,
   calculateLTV,
 } from '../utils/calculations';
+import { calculateWholesaleOutputs } from '../utils/wholesaleCalculations';
 import { InputSlider, MetricCard, WaterfallChart, Gauge, TornadoChart } from './shared';
 
 interface UnitEconomicsProps {
   inputs: UnitEconomicsInputs;
   fixedMonthlyCosts: number;
+  wholesale: WholesaleState;
   onInputChange: (key: keyof UnitEconomicsInputs, value: number) => void;
 }
 
-export function UnitEconomics({ inputs, fixedMonthlyCosts, onInputChange }: UnitEconomicsProps) {
+export function UnitEconomics({ inputs, fixedMonthlyCosts, wholesale, onInputChange }: UnitEconomicsProps) {
   const outputs = calculateUnitEconomics(inputs, fixedMonthlyCosts);
   const ltvCacStatus = getLtvCacStatus(outputs.ltvCacRatio);
+  const wholesaleOutputs = calculateWholesaleOutputs(wholesale);
+
+  // Calculate box capacity from wholesale inventory
+  const avgPremiumPerBox = 3; // lbs of premium + ultra premium per standard box
+  const boxCapacity = Math.floor(wholesaleOutputs.premiumCutsForCaldera / avgPremiumPerBox);
 
   // Waterfall data for margin breakdown
   const waterfallItems = [
@@ -186,6 +193,28 @@ export function UnitEconomics({ inputs, fixedMonthlyCosts, onInputChange }: Unit
             value={`${formatNumber(outputs.paybackPeriod)} mo`}
             subtitle={`Break-even: ${outputs.breakEvenSubscribers} subs`}
             status={outputs.paybackPeriod < 6 ? 'green' : outputs.paybackPeriod < 12 ? 'yellow' : 'red'}
+          />
+        </div>
+
+        {/* Wholesale Integration Metrics */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+          <MetricCard
+            label="Premium Cuts Available"
+            value={`${wholesaleOutputs.premiumCutsForCaldera} lbs`}
+            subtitle="From wholesale program"
+            status={wholesaleOutputs.premiumCutsForCaldera >= 50 ? 'green' : wholesaleOutputs.premiumCutsForCaldera >= 25 ? 'yellow' : 'red'}
+          />
+          <MetricCard
+            label="Box Capacity"
+            value={`${boxCapacity} boxes`}
+            subtitle="Monthly from inventory"
+            status={boxCapacity >= 15 ? 'green' : boxCapacity >= 8 ? 'yellow' : 'red'}
+          />
+          <MetricCard
+            label="Inventory Constraint"
+            value={boxCapacity >= outputs.breakEvenSubscribers ? 'Unconstrained' : 'Constrained'}
+            subtitle={boxCapacity >= outputs.breakEvenSubscribers ? 'Can meet demand' : 'Increase wholesale volume'}
+            status={boxCapacity >= outputs.breakEvenSubscribers ? 'green' : 'red'}
           />
         </div>
 

@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { UnitEconomicsInputs, ScenarioType, WeeklyActual, CalderaState } from './types';
-import { DEFAULT_UNIT_ECONOMICS, DEFAULT_CASH_POSITION, DEFAULT_FIXED_MONTHLY_COSTS } from './utils/constants';
+import type { UnitEconomicsInputs, ScenarioType, WeeklyActual, CalderaState, WholesaleState } from './types';
+import { DEFAULT_UNIT_ECONOMICS, DEFAULT_CASH_POSITION, DEFAULT_FIXED_MONTHLY_COSTS, DEFAULT_WHOLESALE } from './utils/constants';
 import { encodeStateToUrl, decodeStateFromUrl } from './utils/calculations';
-import { UnitEconomics, TestModeler, DecisionFramework, VerticalIntegration } from './components';
+import { UnitEconomics, WholesaleProgram, TestModeler, DecisionFramework, VerticalIntegration } from './components';
 
-type TabType = 'economics' | 'modeler' | 'framework' | 'integration';
+type TabType = 'economics' | 'wholesale' | 'modeler' | 'framework' | 'integration';
 
 const TABS: { id: TabType; label: string }[] = [
   { id: 'economics', label: 'Unit Economics' },
+  { id: 'wholesale', label: 'Wholesale Program' },
   { id: 'modeler', label: '90 Day Test' },
   { id: 'framework', label: 'Decision Framework' },
   { id: 'integration', label: 'Vertical Integration' },
@@ -16,6 +17,7 @@ const TABS: { id: TabType; label: string }[] = [
 function App() {
   const [activeTab, setActiveTab] = useState<TabType>('economics');
   const [unitEconomics, setUnitEconomics] = useState<UnitEconomicsInputs>(DEFAULT_UNIT_ECONOMICS);
+  const [wholesale, setWholesale] = useState<WholesaleState>(DEFAULT_WHOLESALE);
   const [scenario, setScenario] = useState<ScenarioType>('base');
   const [actuals, setActuals] = useState<WeeklyActual[]>([]);
   const [cashPosition, setCashPosition] = useState(DEFAULT_CASH_POSITION);
@@ -26,6 +28,7 @@ function App() {
     const savedState = decodeStateFromUrl(window.location.search);
     if (savedState) {
       if (savedState.unitEconomics) setUnitEconomics(savedState.unitEconomics);
+      if (savedState.wholesale) setWholesale(savedState.wholesale);
       if (savedState.scenario) setScenario(savedState.scenario);
       if (savedState.actuals) setActuals(savedState.actuals);
       if (savedState.cashPosition) setCashPosition(savedState.cashPosition);
@@ -36,6 +39,7 @@ function App() {
   const updateUrl = useCallback(() => {
     const state: CalderaState = {
       unitEconomics,
+      wholesale,
       scenario,
       actuals,
       cashPosition,
@@ -43,7 +47,7 @@ function App() {
     };
     const encoded = encodeStateToUrl(state);
     window.history.replaceState(null, '', `?${encoded}`);
-  }, [unitEconomics, scenario, actuals, cashPosition, fixedMonthlyCosts]);
+  }, [unitEconomics, wholesale, scenario, actuals, cashPosition, fixedMonthlyCosts]);
 
   useEffect(() => {
     const timeout = setTimeout(updateUrl, 500);
@@ -70,12 +74,12 @@ function App() {
 
         <div className="flex items-center gap-4">
           {/* Tab Navigation */}
-          <nav className="hidden md:flex gap-1">
+          <nav className="hidden lg:flex gap-1">
             {TABS.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded text-sm transition-colors ${
+                className={`px-3 py-2 rounded text-sm transition-colors ${
                   activeTab === tab.id
                     ? 'bg-[var(--color-accent)] text-[var(--color-text-primary)]'
                     : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-accent)] hover:bg-opacity-50'
@@ -97,7 +101,7 @@ function App() {
       </header>
 
       {/* Mobile Tab Navigation */}
-      <div className="md:hidden bg-[var(--color-secondary-bg)] border-b border-[var(--color-accent)] p-2 flex gap-1 overflow-x-auto">
+      <div className="lg:hidden bg-[var(--color-secondary-bg)] border-b border-[var(--color-accent)] p-2 flex gap-1 overflow-x-auto">
         {TABS.map(tab => (
           <button
             key={tab.id}
@@ -119,7 +123,14 @@ function App() {
           <UnitEconomics
             inputs={unitEconomics}
             fixedMonthlyCosts={fixedMonthlyCosts}
+            wholesale={wholesale}
             onInputChange={handleUnitEconomicsChange}
+          />
+        )}
+        {activeTab === 'wholesale' && (
+          <WholesaleProgram
+            wholesale={wholesale}
+            onWholesaleChange={setWholesale}
           />
         )}
         {activeTab === 'modeler' && (
@@ -137,16 +148,17 @@ function App() {
           <DecisionFramework
             actuals={actuals}
             unitEconomics={unitEconomics}
+            wholesale={wholesale}
           />
         )}
         {activeTab === 'integration' && (
-          <VerticalIntegration />
+          <VerticalIntegration wholesale={wholesale} />
         )}
       </main>
 
       {/* Footer */}
       <footer className="h-10 bg-[var(--color-secondary-bg)] border-t border-[var(--color-accent)] flex items-center justify-between px-6 text-xs text-[var(--color-text-secondary)] flex-shrink-0">
-        <span>Caldera Decision Engine v1.0</span>
+        <span>Caldera Decision Engine v1.1</span>
         <span>Westco / Sinton & Sons</span>
       </footer>
     </div>

@@ -66,6 +66,7 @@ export interface CalderaState {
   actuals: WeeklyActual[];
   cashPosition: number;
   fixedMonthlyCosts: number;
+  wholesale: WholesaleState;
 }
 
 export interface SliderConfig {
@@ -76,4 +77,89 @@ export interface SliderConfig {
   step: number;
   format: 'currency' | 'percent' | 'number';
   onChange: (value: number) => void;
+}
+
+// Wholesale Program Types
+export interface WholesalePrices {
+  ground: { wholesale: number; retail: number };
+  premium: { wholesale: number; retail: number };
+  ultraPremium: { wholesale: number; retail: number };
+}
+
+export interface ChannelAllocation {
+  wholesale: number;
+  retail: number;
+  online: number;
+  caldera: number;
+}
+
+export interface WholesaleChannelAllocations {
+  ground: ChannelAllocation;
+  premium: ChannelAllocation;
+  ultraPremium: ChannelAllocation;
+}
+
+export interface WholesaleState {
+  animalsPerMonth: number;
+  liveWeight: number;
+  costPerPound: number;
+  harvestFee: number;
+  processingCost: number;
+  prices: WholesalePrices;
+  channelAllocation: WholesaleChannelAllocations;
+}
+
+export interface AnimalYield {
+  ground: number;
+  premium: number;
+  ultraPremium: number;
+  total: number;
+}
+
+export interface ScenarioProfit {
+  allGround: number;
+  allWholesale: number;
+  combo: number;
+}
+
+export interface ChannelRevenue {
+  wholesale: number;
+  retail: number;
+  online: number;
+  caldera: number;
+}
+
+export interface WholesaleOutputs {
+  costBasis: number;
+  yield: AnimalYield;
+  scenarioProfit: ScenarioProfit;
+  monthlyGrossRevenue: number;
+  monthlyNetProfit: number;
+  annualProjection: number;
+  poundsPerCategory: AnimalYield;
+  wholesaleAccountsRequired: number;
+  premiumCutsForCaldera: number;
+  revenueByChannel: ChannelRevenue;
+  revenueByCategory: {
+    ground: number;
+    premium: number;
+    ultraPremium: number;
+  };
+}
+
+export interface WholesaleMilestone {
+  id: string;
+  name: string;
+  target: string;
+  status: 'green' | 'yellow' | 'red' | 'pending';
+  description: string;
+}
+
+export interface BoxType {
+  name: string;
+  description: string;
+  premiumLbs: number;
+  ultraPremiumLbs: number;
+  groundLbs: number;
+  price: number;
 }
