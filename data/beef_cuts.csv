@@ -1,0 +1,137 @@
+sku,name,category,price_per_lb
+10101,Ribeye Steak Bone-In,Rib,26.99
+10102,Ribeye Steak Boneless,Rib,28.99
+10103,Ribeye Roast Bone-In,Rib,22.99
+10104,Ribeye Roast Boneless,Rib,24.99
+10105,Prime Rib Roast,Rib,24.99
+10106,Beef Back Ribs,Rib,12.99
+10107,Rib Cap (Spinalis),Rib,34.99
+10108,Ribeye Lip-On,Rib,25.99
+10109,Cowboy Steak (Bone-In Ribeye),Rib,29.99
+10110,Tomahawk Steak,Rib,32.99
+10201,NY Strip Steak Bone-In,Loin,24.99
+10202,NY Strip Steak Boneless,Loin,26.99
+10203,Strip Loin Roast,Loin,22.99
+10204,Porterhouse Steak,Loin,29.99
+10205,T-Bone Steak,Loin,27.99
+10206,Filet Mignon,Loin,38.99
+10207,Tenderloin Roast Whole,Loin,34.99
+10208,Tenderloin Roast Center Cut,Loin,36.99
+10209,Tenderloin Tips,Loin,24.99
+10210,Chateaubriand,Loin,42.99
+10211,Tenderloin Tail,Loin,28.99
+10212,Filet Mignon Medallions,Loin,40.99
+10213,Strip Loin Whole,Loin,19.99
+10301,Top Sirloin Steak,Sirloin,14.99
+10302,Top Sirloin Roast,Sirloin,12.99
+10303,Bottom Sirloin Flap (Bavette),Sirloin,16.99
+10304,Tri-Tip Roast,Sirloin,14.99
+10305,Tri-Tip Steak,Sirloin,15.99
+10306,Sirloin Cap (Picanha),Sirloin,18.99
+10307,Ball Tip Roast,Sirloin,11.99
+10308,Ball Tip Steak,Sirloin,12.99
+10309,Petite Sirloin Steak,Sirloin,13.99
+10310,Coulotte Steak,Sirloin,17.99
+10311,Center Cut Sirloin Steak,Sirloin,15.99
+10401,Top Round Roast,Round,9.99
+10402,Top Round Steak,Round,10.99
+10403,Bottom Round Roast,Round,8.99
+10404,Bottom Round Steak,Round,9.99
+10405,Eye of Round Roast,Round,9.99
+10406,Eye of Round Steak,Round,10.99
+10407,Rump Roast,Round,8.99
+10408,London Broil,Round,10.99
+10409,Round Tip Roast,Round,9.49
+10410,Round Tip Steak,Round,10.49
+10411,Cube Steak,Round,11.99
+10412,Sandwich Steak,Round,12.99
+10413,Minute Steak,Round,11.99
+10501,Chuck Roast Bone-In,Chuck,8.99
+10502,Chuck Roast Boneless,Chuck,9.99
+10503,Chuck Eye Steak,Chuck,14.99
+10504,Chuck Eye Roast,Chuck,12.99
+10505,Flat Iron Steak,Chuck,16.99
+10506,Denver Steak,Chuck,15.99
+10507,Chuck Tender Roast,Chuck,10.99
+10508,Chuck Tender Steak,Chuck,11.99
+10509,Shoulder Roast,Chuck,8.99
+10510,Shoulder Steak,Chuck,9.99
+10511,Cross Rib Roast,Chuck,9.99
+10512,Sierra Steak,Chuck,14.99
+10513,Petite Tender,Chuck,18.99
+10514,Ranch Steak,Chuck,12.99
+10515,Chuck Short Ribs Bone-In,Chuck,14.99
+10516,Chuck Flap,Chuck,13.99
+10517,Under Blade Roast,Chuck,9.49
+10518,Under Blade Steak,Chuck,10.49
+10601,Brisket Whole Packer,Brisket,9.99
+10602,Brisket Flat,Brisket,11.99
+10603,Brisket Point,Brisket,10.99
+10604,Brisket Burnt Ends,Brisket,14.99
+10605,Corned Beef Brisket,Brisket,12.99
+10701,Plate Short Ribs Bone-In,Plate,16.99
+10702,Plate Short Ribs Boneless,Plate,18.99
+10703,Skirt Steak Outside,Plate,18.99
+10704,Skirt Steak Inside,Plate,16.99
+10705,Hanger Steak,Plate,19.99
+10706,Plate Steak,Plate,12.99
+10707,Short Rib Flanken Cut,Plate,15.99
+10708,Dino Ribs (Plate Ribs),Plate,17.99
+10801,Flank Steak,Flank,17.99
+10802,Flank Steak Butterflied,Flank,18.99
+10803,Flank for Stuffing,Flank,16.99
+10901,Fore Shank Bone-In,Shank,6.99
+10902,Fore Shank Boneless,Shank,8.99
+10903,Hind Shank Bone-In,Shank,6.99
+10904,Hind Shank Boneless,Shank,8.99
+10905,Osso Buco (Cross Cut Shank),Shank,12.99
+10906,Shank Meat for Stew,Shank,9.99
+11001,Ground Beef 73/27,Ground,6.99
+11002,Ground Beef 80/20,Ground,7.99
+11003,Ground Beef 85/15,Ground,8.99
+11004,Ground Beef 90/10,Ground,9.99
+11005,Ground Beef 93/7,Ground,10.99
+11006,Ground Chuck,Ground,8.49
+11007,Ground Round,Ground,9.49
+11008,Ground Sirloin,Ground,10.49
+11009,Steak Burger Patties,Ground,9.99
+11010,Slider Patties,Ground,10.99
+11011,Meatloaf Mix,Ground,8.99
+11101,Beef Stew Meat,Stew/Kabob,10.99
+11102,Beef Kabob Meat,Stew/Kabob,12.99
+11103,Stir Fry Strips,Stew/Kabob,13.99
+11104,Fajita Meat,Stew/Kabob,14.99
+11105,Carne Asada,Stew/Kabob,15.99
+11106,Beef Tips,Stew/Kabob,11.99
+11201,Oxtail,Offal,11.99
+11202,Beef Liver,Offal,5.99
+11203,Beef Heart,Offal,6.99
+11204,Beef Kidney,Offal,4.99
+11205,Beef Tongue,Offal,9.99
+11206,Beef Cheeks,Offal,12.99
+11207,Beef Sweetbreads,Offal,14.99
+11208,Marrow Bones,Offal,7.99
+11209,Soup Bones,Offal,4.99
+11210,Knuckle Bones,Offal,3.99
+11211,Neck Bones,Offal,4.99
+11212,Beef Tripe,Offal,5.99
+11301,Beef Tallow,Rendered,8.99
+11302,Beef Suet,Rendered,4.99
+11303,Beef Bone Broth,Rendered,9.99
+11304,Beef Fat Trim,Rendered,2.99
+11401,Beef Jerky Original,Processed,32.99
+11402,Beef Jerky Peppered,Processed,32.99
+11403,Beef Jerky Teriyaki,Processed,32.99
+11404,Beef Sticks,Processed,28.99
+11405,Beef Summer Sausage,Processed,16.99
+11406,Beef Hot Dogs,Processed,12.99
+11407,Beef Breakfast Sausage,Processed,11.99
+11408,Beef Italian Sausage,Processed,12.99
+11409,Beef Chorizo,Processed,13.99
+11410,Beef Bacon,Processed,18.99
+11411,Pastrami,Processed,19.99
+11412,Beef Salami,Processed,16.99
+11501,Whole Beef Side,Whole/Half,7.99
+11502,Beef Hindquarter,Whole/Half,8.49
+11503,Beef Forequarter,Whole/Half,7.49
+11504,Beef Bundle Mixed,Whole/Half,9.99

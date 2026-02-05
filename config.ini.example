@@ -1,0 +1,68 @@
+# Pomponio Ranch Labeling System Configuration
+# Copy to config.ini and customize for your environment
+
+[hardware]
+# Scale serial port (leave blank for auto-detect)
+# Windows: COM3, COM4, etc.
+# Linux: /dev/ttyUSB0, /dev/ttyACM0, etc.
+scale_port =
+
+# Scale baud rate (typically 9600)
+scale_baudrate = 9600
+
+# Printer connection type: serial, network, or mock
+printer_type = mock
+
+# Printer serial port (if printer_type = serial)
+printer_port =
+
+# Printer network address (if printer_type = network)
+printer_host =
+printer_tcp_port = 9100
+
+[application]
+# Window mode: normal, maximized, fullscreen
+window_mode = maximized
+
+# Touch target size in pixels (60 minimum for glove operation)
+touch_target_size = 60
+
+# Enable audio feedback for scans
+audio_enabled = true
+
+[database]
+# Database file path (relative to app directory or absolute)
+db_path = data/pomponio.db
+
+[labels]
+# Label printer DPI (203 or 300)
+printer_dpi = 203
+
+# Package label size (inches)
+package_label_width = 4
+package_label_height = 2
+
+# Box label size (inches)
+box_label_width = 4
+box_label_height = 3
+
+[email]
+# Enable manifest email to back office
+enabled = false
+
+# SMTP server settings (Gmail example)
+smtp_server = smtp.gmail.com
+smtp_port = 587
+
+# SMTP authentication
+# For Gmail: use App Password, not account password
+# Generate at: https://myaccount.google.com/apppasswords
+smtp_user =
+smtp_password =
+
+# Sender email address
+from_email =
+
+# Back office email for automatic manifest delivery
+# Manifest with box contents and barcodes sent when order is ready
+back_office_email =
