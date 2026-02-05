@@ -21,6 +21,7 @@ from .labeling_safe import SafeLabelingScreen
 from .boxes_modern import BoxesScreenModern
 from .orders_modern import OrdersScreenModern
 from .setup_wizard import SetupWizard, needs_setup
+from .update_dialog import check_for_updates_ui
 
 
 class ModernApp:
@@ -98,6 +99,9 @@ class ModernApp:
 
         # Close handler
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+
+        # Check for updates on startup (silent, no dialog if up to date)
+        self.root.after(3000, self._check_for_updates_silent)
 
     def _build_ui(self):
         """Build application UI."""
@@ -349,6 +353,14 @@ class ModernApp:
                     screen.status_bar.flash_success("Settings saved. Restart app to apply hardware changes.")
 
         SetupWizard(self.root, CONFIG_FILE, on_complete=on_settings_complete)
+
+    def _check_for_updates_silent(self):
+        """Check for updates silently on startup."""
+        check_for_updates_ui(self.root, silent=True)
+
+    def check_for_updates(self):
+        """Check for updates with UI feedback (user-initiated)."""
+        check_for_updates_ui(self.root, silent=False)
 
     def _on_close(self):
         """Handle close."""

@@ -66,3 +66,10 @@ from_email =
 # Back office email for automatic manifest delivery
 # Manifest with box contents and barcodes sent when order is ready
 back_office_email =
+
+[updates]
+# Automatically check for updates on startup
+auto_check = true
+
+# How often to check for updates (hours)
+check_interval_hours = 24

@@ -55,12 +55,19 @@ class EmailConfig:
 
 
 @dataclass
+class UpdateConfig:
+    auto_check: bool
+    check_interval_hours: int
+
+
+@dataclass
 class Config:
     hardware: HardwareConfig
     app: AppConfig
     database: DatabaseConfig
     labels: LabelConfig
     email: EmailConfig
+    updates: UpdateConfig
 
 
 def load_config(config_path: Optional[Path] = None) -> Config:
@@ -103,6 +110,10 @@ def load_config(config_path: Optional[Path] = None) -> Config:
         'smtp_password': '',
         'from_email': '',
         'back_office_email': '',
+    }
+    parser['updates'] = {
+        'auto_check': 'true',
+        'check_interval_hours': '24',
     }
 
     # Load from file if exists
@@ -152,12 +163,19 @@ def load_config(config_path: Optional[Path] = None) -> Config:
         back_office_email=email_section.get('back_office_email', ''),
     )
 
+    update_section = parser['updates']
+    updates = UpdateConfig(
+        auto_check=update_section.getboolean('auto_check', True),
+        check_interval_hours=int(update_section.get('check_interval_hours', 24)),
+    )
+
     return Config(
         hardware=hardware,
         app=app,
         database=database,
         labels=labels,
         email=email,
+        updates=updates,
     )
 
 
@@ -197,6 +215,10 @@ def save_config(config: Config, config_path: Optional[Path] = None):
         'smtp_password': config.email.smtp_password,
         'from_email': config.email.from_email,
         'back_office_email': config.email.back_office_email,
+    }
+    parser['updates'] = {
+        'auto_check': str(config.updates.auto_check).lower(),
+        'check_interval_hours': str(config.updates.check_interval_hours),
     }
 
     with open(path, 'w') as f:
