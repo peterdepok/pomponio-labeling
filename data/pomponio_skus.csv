@@ -1,0 +1,109 @@
+sku,name,category,unit,active
+00100,Ribeye Steak Bone-In 1.5in Thick,Beef,lb,true
+00101,New York Steak Boneless 1.25in Thick,Beef,lb,true
+00103,Filet Mignon 8oz,Beef,lb,true
+00104,Beef Filet Tips,Beef,lb,true
+00105,Top Sirloin Steak 1.25in Thick,Beef,lb,true
+00108,Tri-Tip,Beef,lb,true
+00109,Flank Steak,Beef,lb,true
+00110,Outside Skirt Steak,Beef,lb,true
+00111,Hanger Steak,Beef,lb,true
+00112,Bavette Steaks (Flap),Beef,lb,true
+00113,Chuck Petite Filet Steak,Beef,lb,true
+00114,Brisket Flat,Beef,lb,true
+00115,Brisket Primal,Beef,lb,true
+00116,Beef Tenderloin,Beef,lb,true
+00117,English Short Ribs,Beef,lb,true
+00118,Korean Style Short Ribs,Beef,pack,true
+00120,Chuck Roast,Beef,lb,true
+00121,Eye of Round Roast,Beef,lb,true
+00122,Burger Patties 70/30,Beef,pack,true
+00123,Ground Beef 70/30,Beef,lb,true
+00124,Stew Meat,Beef,lb,true
+00125,Flat Iron Steak,Beef,lb,true
+00126,Brisket Point,Beef,lb,true
+00132,Inside Skirt Steak,Beef,lb,true
+00140,Beef Shank 2in,Beef,lb,true
+00141,Marrow Bones,Beef,lb,true
+00142,Beef Stock Bones,Beef,lb,true
+00143,Beef Cheeks,Beef,lb,true
+00144,Beef Sweet Breads,Beef,lb,true
+00145,Oxtail,Beef,lb,true
+00146,Whole Beef Tongue,Beef,lb,true
+00147,Beef Liver,Beef,lb,true
+00148,Heart,Beef,lb,true
+00149,Beef Kidney,Beef,lb,true
+00154,Prime Rib Roast 3 Bone,Beef,lb,true
+00155,Prime Rib Roast 4 Bone,Beef,lb,true
+00156,Prime Rib Roast 7 Bone,Beef,lb,true
+00160,Carne Asada Seasoned,Beef,pack,true
+00161,Denver Steak (Boneless Short Rib),Beef,lb,true
+00162,Arrachera (Flap),Beef,lb,true
+00164,Picanha Steak,Beef,lb,true
+00165,Beef Kabob (Sirloin),Beef,lb,true
+00166,Tomahawk,Beef,lb,true
+00167,Oyster Steak,Beef,lb,true
+00168,Velvet Steak,Beef,lb,true
+00169,Cross Rib Roast,Beef,lb,true
+00170,Chuck Eye Steak,Beef,lb,true
+00171,T-Bone Steak,Beef,lb,true
+00172,Porterhouse,Beef,lb,true
+00173,Sirloin Tip Roast,Beef,lb,true
+00174,Teres Major,Beef,lb,true
+00180,Dino Rib,Beef,lb,true
+00181,Meat for Jerky,Beef,lb,true
+00182,PCM-Beef Trim,Beef,lb,true
+00183,Liver Primal,Beef,lb,true
+00184,Sirloin Tip Steak,Beef,lb,true
+00185,Brisket Burger Patties,Beef,pack,true
+00186,Picanha Roast,Beef,lb,true
+00187,Beef Tendon,Beef,lb,true
+00188,Beef Chorizo Sausage,Beef,pack,true
+00190,Beef Burger Patties Quarter Pound,Beef,pack,true
+00191,Beef Stir Fry,Beef,lb,true
+00192,Burger Patties Chuck and Brisket,Beef,pack,true
+00193,Navel,Beef,lb,true
+00194,Steak Bites,Beef,lb,true
+00195,Beef Stock Bones Bulk,Beef,lb,true
+00196,Fajita Seasoned,Beef,lb,true
+00197,Beef Hot Dogs,Beef,pack,true
+00198,Beef Bacon,Beef,pack,true
+00199,Beef Bacon Ends,Beef,pack,true
+00176,Beef Summer Sausage,Beef,pack,true
+POR175,Pork Sirloin Chops Bone-In,Pork,lb,false
+POR203,Bacon Ends and Pieces,Pork,pack,false
+POR204,Jowl Bacon,Pork,pack,false
+POR207,Pork Spare Ribs,Pork,lb,false
+POR208,Pork Baby Back Ribs,Pork,lb,false
+POR209,Pork Tenderloin,Pork,lb,false
+POR210,Pork Loin Roast Boneless,Pork,lb,false
+POR211,Pork Loin Chops Boneless,Pork,lb,false
+POR212,Pork Sirloin Roast Boneless,Pork,lb,false
+POR213,Pork Sirloin Roast Bone-In,Pork,lb,false
+POR214,Pork Stew Meat,Pork,pack,false
+POR215,Pork Boston Butt Bone-In,Pork,lb,false
+POR216,Pork Picnic Shoulder Roast,Pork,lb,false
+POR220,Raw Ham Hock,Pork,lb,false
+POR221,Smoked Pork Shanks,Pork,lb,false
+POR222,Pork Stock Bones,Pork,lb,false
+POR227,Pork Kidney,Pork,lb,false
+POR228,Pork Heart,Pork,lb,false
+POR229,Pork Liver,Pork,lb,false
+POR235,Ground Pork,Pork,pack,false
+POR242,Pork Jalapeno Cheddar Smoked Sausage,Pork,pack,false
+POR244,Pork Chorizo Sausage,Pork,pack,false
+POR251,Pork Garlic and Basil Sausage Links,Pork,pack,false
+POR252,Pork Smoked Linguisa Sausage,Pork,pack,false
+POR254,Pork Sweet Italian Sausage,Pork,pack,false
+POR255,Pork Hot Dogs,Pork,pack,false
+POR256,Pork Breakfast Link Sausage,Pork,pack,false
+POR257,Pork Hot Italian Sausage,Pork,pack,false
+POR258,Pork Pepper Stick,Pork,pack,false
+POR259,Pork Lunch Meat,Pork,pack,false
+POR260,Pork Tongue,Pork,lb,false
+POR263,Wild-Kiki Sausage,Pork,pack,false
+POR264,Maple Cured Bacon,Pork,pack,false
+POR265,Kielbasa Smoked Sausage,Pork,pack,false
+POR272,Mild Italian Sausage,Pork,pack,false
+POR273,Sugar Free Bacon,Pork,pack,false
+POR274,Sugar Free Bacon Ends,Pork,pack,false
