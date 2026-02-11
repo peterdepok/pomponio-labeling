@@ -305,6 +305,8 @@ class OperationLock:
         return self._operation
 
     def __enter__(self):
+        if not self.acquire("context_manager"):
+            raise RuntimeError(f"Cannot acquire lock: {self._operation} in progress")
         return self
 
     def __exit__(self, *args):

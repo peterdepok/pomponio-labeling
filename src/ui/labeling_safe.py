@@ -449,8 +449,6 @@ class SafeLabelingScreen(ctk.CTkFrame):
         weight = self.captured_weight
 
         barcode = generate_package_barcode(product.sku, weight)
-        package_id = create_package(product.id, weight, barcode)
-        self.pending_package_id = package_id
         self.pending_barcode = barcode
 
         date_str = datetime.now().strftime("%m/%d/%y")
@@ -468,6 +466,10 @@ class SafeLabelingScreen(ctk.CTkFrame):
         except Exception as e:
             alert(self, "Print Error", str(e), 'error')
             return
+
+        # Create package record only after successful print
+        package_id = create_package(product.id, weight, barcode)
+        self.pending_package_id = package_id
 
         self.barcode_validator.expect_barcode(barcode, self.SCAN_TIMEOUT)
 
