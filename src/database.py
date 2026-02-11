@@ -9,8 +9,10 @@ from datetime import datetime, date
 from typing import Optional
 from dataclasses import dataclass
 
+from src import get_app_dir
 
-DB_PATH = Path(__file__).parent.parent / "data" / "pomponio.db"
+
+DB_PATH = get_app_dir() / "data" / "pomponio.db"
 
 
 @dataclass

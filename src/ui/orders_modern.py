@@ -24,6 +24,7 @@ from ..manifest import (
 )
 from .theme import COLORS, FONTS, SIZES
 from .widgets_modern import BigButton, StatusBar, show_verification
+from src import get_app_dir
 
 
 class OrdersScreenModern(ctk.CTkFrame):
@@ -320,7 +321,7 @@ class OrdersScreenModern(ctk.CTkFrame):
             return
 
         # Save HTML manifest locally
-        data_dir = Path(__file__).parent.parent.parent / "data" / "manifests"
+        data_dir = get_app_dir() / "data" / "manifests"
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         html_path = data_dir / f"manifest_{self.current_order.id}_{timestamp}.html"
         save_manifest_pdf(manifest, html_path)

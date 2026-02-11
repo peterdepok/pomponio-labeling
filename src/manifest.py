@@ -19,6 +19,7 @@ from .database import (
     get_product_by_id, Order, Box, Package
 )
 from .barcode import generate_code128_barcode
+from src import get_app_dir
 
 logger = logging.getLogger("pomponio.manifest")
 
@@ -38,7 +39,7 @@ class ManifestConfig:
 def load_manifest_config() -> ManifestConfig:
     """Load manifest email config from config.ini."""
     import configparser
-    config_path = Path(__file__).parent.parent / "config.ini"
+    config_path = get_app_dir() / "config.ini"
 
     config = ManifestConfig()
 
@@ -569,7 +570,7 @@ def auto_send_manifest(order_id: int) -> bool:
         return False
 
     # Save local copy
-    data_dir = Path(__file__).parent.parent / "data" / "manifests"
+    data_dir = get_app_dir() / "data" / "manifests"
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"manifest_{order_id}_{timestamp}.html"
     save_manifest_pdf(manifest, data_dir / filename)

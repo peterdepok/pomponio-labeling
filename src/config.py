@@ -8,8 +8,10 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
 
+from src import get_app_dir
 
-CONFIG_FILE = Path(__file__).parent.parent / "config.ini"
+
+CONFIG_FILE = get_app_dir() / "config.ini"
 
 
 @dataclass

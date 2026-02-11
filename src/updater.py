@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
 
+from src import get_app_dir
+
 # Current version - increment this with each release
 __version__ = "1.0.0"
 
@@ -184,12 +186,7 @@ def apply_update(zip_path: Path, app_dir: Optional[Path] = None) -> bool:
     try:
         # Determine application directory
         if app_dir is None:
-            if getattr(sys, 'frozen', False):
-                # Running as compiled exe
-                app_dir = Path(sys.executable).parent
-            else:
-                # Running as script
-                app_dir = Path(__file__).parent.parent
+            app_dir = get_app_dir()
 
         # Create backup of current installation
         backup_dir = app_dir.parent / 'pomponio_backup'
@@ -387,7 +384,7 @@ def create_release_zip(version: str, output_dir: Optional[Path] = None) -> Path:
         output_dir = Path.cwd()
 
     # Source directory
-    src_dir = Path(__file__).parent.parent
+    src_dir = get_app_dir()
 
     # Output file
     zip_name = f"pomponio-labeling-windows-v{version}.zip"

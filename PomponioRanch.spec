@@ -2,6 +2,8 @@
 """
 PyInstaller spec file for Pomponio Ranch Labeling System.
 
+Cross-platform: works on Windows (production) and macOS (development).
+
 Build with:
     pyinstaller PomponioRanch.spec
 
@@ -9,11 +11,13 @@ Or just run:
     python build_exe.py
 """
 
+import sys
 import os
 from pathlib import Path
 
 block_cipher = None
 root = Path(SPECPATH)
+is_windows = sys.platform == 'win32'
 
 a = Analysis(
     [str(root / 'run.py')],
@@ -63,7 +67,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,  # No console window
+    console=not is_windows,  # Show console on macOS for dev, hide on Windows
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

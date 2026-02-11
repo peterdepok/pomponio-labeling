@@ -16,8 +16,10 @@ from datetime import datetime, timedelta
 from typing import Callable, Optional, Any, TypeVar
 from dataclasses import dataclass, field
 
+from src import get_app_dir
+
 # Configure logging
-LOG_DIR = Path(__file__).parent.parent / "data" / "logs"
+LOG_DIR = get_app_dir() / "data" / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
