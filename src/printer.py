@@ -147,6 +147,16 @@ class LabelGenerator:
     BOX_HEIGHT = 3 * DOTS_PER_INCH      # 609 dots
 
     @staticmethod
+    def sanitize_zpl(text: str) -> str:
+        """
+        Sanitize user-provided strings to prevent ZPL injection.
+        Strips ZPL control characters (^ and ~) that could inject commands.
+        """
+        if not text:
+            return ""
+        return text.replace("^", "").replace("~", "")
+
+    @staticmethod
     def package_label(
         product_name: str,
         sku: str,
@@ -168,14 +178,15 @@ class LabelGenerator:
         +----------------------------------+
         """
         total_price = weight_lbs * price_per_lb
-        date_str = date_packed or ""
+        date_str = LabelGenerator.sanitize_zpl(date_packed or "")
+        product_name_safe = LabelGenerator.sanitize_zpl(product_name)
 
         zpl = f"""^XA
 ^CF0,30
 ^FO30,20^FDPOMPONIO RANCH^FS
 
 ^CF0,45
-^FO30,60^FD{product_name[:25]}^FS
+^FO30,60^FD{product_name_safe[:25]}^FS
 
 ^CF0,35
 ^FO30,120^FDWeight: {weight_lbs:.2f} LB^FS
@@ -214,7 +225,8 @@ class LabelGenerator:
         |              [Customer]          |
         +----------------------------------+
         """
-        customer_line = customer_name or ""
+        customer_line = LabelGenerator.sanitize_zpl(customer_name or "")
+        box_number_safe = LabelGenerator.sanitize_zpl(box_number)
 
         # QR code data needs to be escaped for ZPL
         qr_escaped = qr_data.replace("^", "").replace("~", "")
@@ -224,7 +236,7 @@ class LabelGenerator:
 ^FO30,20^FDPOMPONIO RANCH^FS
 
 ^CF0,45
-^FO30,70^FDBox: {box_number}^FS
+^FO30,70^FDBox: {box_number_safe}^FS
 
 ^BQN,2,6
 ^FO30,130^FDQA,{qr_escaped}^FS
@@ -259,16 +271,19 @@ class LabelGenerator:
         | YYYYMMDD-001, YYYYMMDD-002, ...  |
         +----------------------------------+
         """
-        box_list = ", ".join(box_numbers[:6])
+        # Sanitize box numbers and customer name
+        box_numbers_safe = [LabelGenerator.sanitize_zpl(bn) for bn in box_numbers[:6]]
+        box_list = ", ".join(box_numbers_safe)
         if len(box_numbers) > 6:
             box_list += f" +{len(box_numbers) - 6} more"
+        customer_name_safe = LabelGenerator.sanitize_zpl(customer_name)
 
         zpl = f"""^XA
 ^CF0,30
 ^FO30,20^FDPOMPONIO RANCH - ORDER MANIFEST^FS
 
 ^CF0,40
-^FO30,70^FDCustomer: {customer_name[:25]}^FS
+^FO30,70^FDCustomer: {customer_name_safe[:25]}^FS
 
 ^CF0,35
 ^FO30,130^FDBoxes: {box_count}^FS

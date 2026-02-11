@@ -3,6 +3,7 @@ Configuration management for Pomponio Ranch Labeling System.
 Loads settings from config.ini file.
 """
 
+import os
 import configparser
 from pathlib import Path
 from dataclasses import dataclass
@@ -49,7 +50,7 @@ class EmailConfig:
     smtp_server: str
     smtp_port: int
     smtp_user: str
-    smtp_password: str
+    smtp_password: str  # WARNING: Stored in plaintext. Use POMPONIO_SMTP_PASSWORD env var in production.
     from_email: str
     back_office_email: str
 
@@ -153,12 +154,19 @@ def load_config(config_path: Optional[Path] = None) -> Config:
     )
 
     email_section = parser['email']
+    smtp_password = email_section.get('smtp_password', '')
+
+    # Allow environment variable override for password (more secure than config file)
+    env_password = os.environ.get('POMPONIO_SMTP_PASSWORD')
+    if env_password:
+        smtp_password = env_password
+
     email = EmailConfig(
         enabled=email_section.getboolean('enabled', False),
         smtp_server=email_section.get('smtp_server', 'smtp.gmail.com'),
         smtp_port=int(email_section.get('smtp_port', 587)),
         smtp_user=email_section.get('smtp_user', ''),
-        smtp_password=email_section.get('smtp_password', ''),
+        smtp_password=smtp_password,
         from_email=email_section.get('from_email', ''),
         back_office_email=email_section.get('back_office_email', ''),
     )

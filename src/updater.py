@@ -11,6 +11,7 @@ import zipfile
 import tempfile
 import subprocess
 import threading
+import hashlib
 from pathlib import Path
 from typing import Optional, Callable, Tuple
 from dataclasses import dataclass
@@ -207,12 +208,27 @@ def apply_update(zip_path: Path, app_dir: Optional[Path] = None) -> bool:
                 else:
                     shutil.copy2(src, dst)
 
+        # Compute SHA-256 checksum for manual verification
+        # TODO: Implement full signature verification before production deployment
+        sha256_hash = hashlib.sha256()
+        with open(zip_path, 'rb') as f:
+            for chunk in iter(lambda: f.read(8192), b''):
+                sha256_hash.update(chunk)
+        checksum = sha256_hash.hexdigest()
+        print(f"Update package SHA-256: {checksum}")
+        print("NOTE: Verify this checksum against official release before proceeding to production")
+
         # Extract update to temp location
         extract_dir = Path(tempfile.gettempdir()) / 'pomponio_extract'
         if extract_dir.exists():
             shutil.rmtree(extract_dir)
 
         with zipfile.ZipFile(zip_path, 'r') as zf:
+            # Validate no path traversal attacks (zip slip vulnerability)
+            for member in zf.namelist():
+                member_path = (extract_dir / member).resolve()
+                if not str(member_path).startswith(str(extract_dir.resolve())):
+                    raise ValueError(f"Zip contains path traversal: {member}")
             zf.extractall(extract_dir)
 
         # Find the root of the extracted content
