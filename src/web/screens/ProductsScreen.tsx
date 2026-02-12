@@ -151,31 +151,38 @@ export function ProductsScreen({
           <span className="relative z-10">Search</span>
         </button>
 
-        {/* Last used: right-aligned, larger than category tabs for fast repeat */}
+        {/* Last used: dominant repeat button, sized to match product grid buttons */}
         {lastUsedProduct && (
           <button
             onClick={() => onSelectProduct(lastUsedProduct)}
-            className="game-btn ml-auto min-h-[56px] px-6 rounded-xl font-bold whitespace-nowrap select-none flex items-center gap-3 relative overflow-hidden"
+            className="game-btn ml-auto h-[96px] min-w-[280px] px-8 rounded-2xl font-extrabold select-none flex items-center gap-4 relative overflow-hidden"
             style={{
-              background: "linear-gradient(180deg, #2e7d32, #1b5e20)",
-              boxShadow: "0 4px 0 0 #0a1a0a, 0 6px 16px rgba(81, 207, 102, 0.25), inset 0 1px 0 rgba(255,255,255,0.15)",
-              border: "2px solid rgba(81, 207, 102, 0.4)",
+              background: "linear-gradient(180deg, #43a047, #2e7d32)",
+              boxShadow: "0 6px 0 0 #1a3a1a, 0 8px 20px rgba(81, 207, 102, 0.3), inset 0 2px 0 rgba(255,255,255,0.25), inset 0 -2px 4px rgba(0,0,0,0.15)",
+              border: "2px solid rgba(81, 207, 102, 0.5)",
               color: "#ffffff",
-              fontSize: "16px",
-              textShadow: "0 1px 3px rgba(0,0,0,0.4)",
+              textShadow: "0 2px 4px rgba(0,0,0,0.4), 0 0 12px rgba(26, 58, 26, 0.8)",
+              borderRadius: "16px",
             }}
           >
             <div className="game-gloss" />
             <div
+              className="absolute inset-0 pointer-events-none rounded-2xl"
+              style={{ boxShadow: "inset 0 0 20px rgba(255,255,255,0.08)" }}
+            />
+            <div
               className="game-btn-ledge"
               style={{
-                height: "4px",
-                background: "#0a1a0a",
-                borderRadius: "0 0 12px 12px",
+                height: "6px",
+                background: "#1a3a1a",
+                borderRadius: "0 0 16px 16px",
               }}
             />
-            <span className="relative z-10" style={{ fontSize: "22px" }}>&#x21bb;</span>
-            <span className="relative z-10 truncate max-w-[240px]">{lastUsedProduct.name}</span>
+            <span className="relative z-10" style={{ fontSize: "32px" }}>&#x21bb;</span>
+            <div className="relative z-10 flex flex-col items-start">
+              <span className="text-xs uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.6)", fontSize: "10px" }}>Last Used</span>
+              <span className="truncate max-w-[200px]" style={{ fontSize: "clamp(18px, 1.9vw, 24px)" }}>{lastUsedProduct.name}</span>
+            </div>
           </button>
         )}
       </div>
