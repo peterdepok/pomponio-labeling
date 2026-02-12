@@ -3,7 +3,7 @@
  * Main application with tab navigation between screens.
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { TabNav } from "./web/components/TabNav.tsx";
 import type { TabId } from "./web/components/TabNav.tsx";
 import { InfoBar } from "./web/components/InfoBar.tsx";
@@ -24,8 +24,19 @@ import type { Product } from "./web/data/skus.ts";
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabId>("Products");
-  const [activeProductCategory, setActiveProductCategory] = useState<string>("Steaks");
+  const [activeProductCategory, setActiveProductCategory] = useState<string>(() => {
+    try {
+      return localStorage.getItem("pomponio_activeCategory") || "Steaks";
+    } catch { return "Steaks"; }
+  });
   const [lastUsedProduct, setLastUsedProduct] = useState<Product | null>(null);
+
+  // Persist active category across page reloads
+  useEffect(() => {
+    try { localStorage.setItem("pomponio_activeCategory", activeProductCategory); }
+    catch { /* quota exceeded, non-fatal */ }
+  }, [activeProductCategory]);
+
   const workflow = useWorkflow();
   const app = useAppState();
   const { settings, setSetting, resetToDefaults } = useSettings();
@@ -109,17 +120,19 @@ function App() {
       boxNumber: box?.boxNumber ?? 0,
       packageCount: pkgs.length,
       totalWeight,
-      labelCount: pkgs.length, // one label per package at close
+      labelCount: pkgs.length,
     });
     app.closeBox(boxId);
-    // Auto-create new box
+    // Auto-create new box. The new box number is derived from the count
+    // of existing boxes for this animal, rather than looking up the new
+    // box in state (which hasn't re-rendered yet).
     if (app.currentAnimalId) {
+      const existingCount = app.boxes.filter(b => b.animalId === app.currentAnimalId).length;
       const newBoxId = app.createBox(app.currentAnimalId);
-      const newBox = app.boxes.find(b => b.id === newBoxId);
       audit.logEvent("box_created", {
         boxId: newBoxId,
         animalId: app.currentAnimalId,
-        boxNumber: newBox?.boxNumber ?? (app.boxes.filter(b => b.animalId === app.currentAnimalId).length + 1),
+        boxNumber: existingCount + 1,
       });
       app.setCurrentBoxId(newBoxId);
     }
@@ -150,12 +163,12 @@ function App() {
 
   const handleNewBox = useCallback(() => {
     if (app.currentAnimalId) {
+      const existingCount = app.boxes.filter(b => b.animalId === app.currentAnimalId).length;
       const newBoxId = app.createBox(app.currentAnimalId);
-      const newBox = app.boxes.find(b => b.id === newBoxId);
       audit.logEvent("box_created", {
         boxId: newBoxId,
         animalId: app.currentAnimalId,
-        boxNumber: newBox?.boxNumber ?? (app.boxes.filter(b => b.animalId === app.currentAnimalId).length),
+        boxNumber: existingCount + 1,
       });
       app.setCurrentBoxId(newBoxId);
       app.showToast("New box created");

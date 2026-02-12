@@ -118,8 +118,13 @@ export function generateBoxLabels(
 
     while (remaining > 0) {
       const batch = Math.min(remaining, 9);
-      // Proportional weight for this batch
-      const batchWeight = (batch / group.count) * group.totalWeight;
+      // Proportional weight: use remaining count and remaining weight
+      // so rounding errors don't accumulate across splits.
+      // The last batch gets whatever weight is left (avoids drift).
+      const isLastBatch = remaining - batch === 0;
+      const batchWeight = isLastBatch
+        ? remainingWeight
+        : (batch / remaining) * remainingWeight;
       // Round to 2 decimal places
       const roundedWeight = Math.round(batchWeight * 100) / 100;
 

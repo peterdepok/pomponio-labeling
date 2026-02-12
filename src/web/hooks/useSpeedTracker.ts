@@ -4,7 +4,7 @@
  * Standalone hook, no dependency on useAppState.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface UseSpeedTrackerOptions {
   /** PPM threshold to qualify as "fast" (default 4). */
@@ -55,6 +55,22 @@ export function useSpeedTracker(options?: UseSpeedTrackerOptions): UseSpeedTrack
       setShowEncouragement(true);
     }
   }, [threshold, cooldownMs]);
+
+  // Periodically prune old timestamps so PPM decays to zero
+  // when the operator stops scanning. Without this, PPM only
+  // updates on the next recordPackage() call.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const cutoff = Date.now() - WINDOW_MS;
+      const pruned = timestampsRef.current.filter(t => t > cutoff);
+      // Only trigger re-render if count actually changed
+      if (pruned.length !== timestampsRef.current.length) {
+        timestampsRef.current = pruned;
+        setPpm(pruned.length);
+      }
+    }, 5_000); // check every 5 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   const dismissEncouragement = useCallback(() => {
     setShowEncouragement(false);

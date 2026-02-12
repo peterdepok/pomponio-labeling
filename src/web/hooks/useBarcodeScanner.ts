@@ -51,6 +51,14 @@ export function useBarcodeScanner(options: UseBarcodeScannerOptions): UseBarcode
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip events originating from text inputs to avoid capturing typed text
+      // (e.g., void reason field). Scanner events target the document body.
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+        resetBuffer();
+        return;
+      }
+
       const now = Date.now();
 
       // If too much time passed since last keystroke, reset (human typing)

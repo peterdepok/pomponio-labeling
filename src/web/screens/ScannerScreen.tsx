@@ -72,7 +72,11 @@ export function ScannerScreen({
         // Box summary barcode: find matching box by SKU and weight
         const sku = parsed.sku;
         const targetWeight = parsed.weightLb;
-        const tolerance = 0.05;
+        // Tolerance accounts for cumulative rounding across split box labels.
+        // A box with 9 items averaging 1.12 lb each can drift ~0.04 lb per label
+        // from barcode encoding (hundredths precision). 0.5 lb covers realistic
+        // accumulation across multi-label splits.
+        const tolerance = 0.5;
 
         let foundBox: Box | null = null;
         let foundAnimal: Animal | null = null;

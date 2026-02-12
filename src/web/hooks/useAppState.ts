@@ -94,38 +94,64 @@ export function useAppState() {
   const [toast, setToast] = useState<string | null>(null);
 
   // --- Persist state to localStorage on every change ---
+  // Wrapped in try/catch to survive quota exceeded errors on kiosk browsers.
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.animals, JSON.stringify(animals));
+    try { localStorage.setItem(STORAGE_KEYS.animals, JSON.stringify(animals)); }
+    catch { console.warn("localStorage write failed for animals"); }
   }, [animals]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.boxes, JSON.stringify(boxes));
+    try { localStorage.setItem(STORAGE_KEYS.boxes, JSON.stringify(boxes)); }
+    catch { console.warn("localStorage write failed for boxes"); }
   }, [boxes]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.packages, JSON.stringify(packages));
+    try { localStorage.setItem(STORAGE_KEYS.packages, JSON.stringify(packages)); }
+    catch { console.warn("localStorage write failed for packages"); }
   }, [packages]);
 
   useEffect(() => {
-    if (currentAnimalId !== null) {
-      localStorage.setItem(STORAGE_KEYS.currentAnimalId, String(currentAnimalId));
-    } else {
-      localStorage.removeItem(STORAGE_KEYS.currentAnimalId);
-    }
+    try {
+      if (currentAnimalId !== null) {
+        localStorage.setItem(STORAGE_KEYS.currentAnimalId, String(currentAnimalId));
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.currentAnimalId);
+      }
+    } catch { console.warn("localStorage write failed for currentAnimalId"); }
   }, [currentAnimalId]);
 
   useEffect(() => {
-    if (currentBoxId !== null) {
-      localStorage.setItem(STORAGE_KEYS.currentBoxId, String(currentBoxId));
-    } else {
-      localStorage.removeItem(STORAGE_KEYS.currentBoxId);
-    }
+    try {
+      if (currentBoxId !== null) {
+        localStorage.setItem(STORAGE_KEYS.currentBoxId, String(currentBoxId));
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.currentBoxId);
+      }
+    } catch { console.warn("localStorage write failed for currentBoxId"); }
   }, [currentBoxId]);
 
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const showToast = useCallback((msg: string) => {
+    // Clear any pending toast dismissal to prevent stale timeouts
+    if (toastTimerRef.current !== null) {
+      clearTimeout(toastTimerRef.current);
+    }
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    toastTimerRef.current = setTimeout(() => {
+      setToast(null);
+      toastTimerRef.current = null;
+    }, 3000);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current !== null) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
   }, []);
 
   const createAnimal = useCallback((name: string): number => {
@@ -156,18 +182,23 @@ export function useAppState() {
     return animals.filter(a => a.closedAt === null);
   }, [animals]);
 
+  // Track the created box ID via ref so we can return it synchronously
+  const createdBoxIdRef = useRef<number>(0);
+
   const createBox = useCallback((animalId: number): number => {
-    const existingBoxes = boxes.filter(b => b.animalId === animalId);
     const id = nextBoxId++;
-    const box: Box = {
-      id,
-      animalId,
-      boxNumber: existingBoxes.length + 1,
-      closed: false,
-    };
-    setBoxes(prev => [...prev, box]);
+    createdBoxIdRef.current = id;
+    setBoxes(prev => {
+      const existingBoxes = prev.filter(b => b.animalId === animalId);
+      return [...prev, {
+        id,
+        animalId,
+        boxNumber: existingBoxes.length + 1,
+        closed: false,
+      }];
+    });
     return id;
-  }, [boxes]);
+  }, []);
 
   const closeBox = useCallback((boxId: number) => {
     setBoxes(prev =>
@@ -242,24 +273,29 @@ export function useAppState() {
   const selectAnimal = useCallback((animalId: number | null) => {
     setCurrentAnimalId(animalId);
     if (animalId !== null) {
-      const openBoxes = boxes.filter(b => b.animalId === animalId && !b.closed);
-      if (openBoxes.length === 0) {
-        const newBoxId = nextBoxId++;
-        const existingBoxes = boxes.filter(b => b.animalId === animalId);
-        setBoxes(prev => [...prev, {
-          id: newBoxId,
-          animalId,
-          boxNumber: existingBoxes.length + 1,
-          closed: false,
-        }]);
-        setCurrentBoxId(newBoxId);
-      } else {
-        setCurrentBoxId(openBoxes[0].id);
-      }
+      // Use functional update to read the latest boxes state,
+      // avoiding stale closure over the `boxes` array.
+      setBoxes(prevBoxes => {
+        const openBoxes = prevBoxes.filter(b => b.animalId === animalId && !b.closed);
+        if (openBoxes.length === 0) {
+          const newBoxId = nextBoxId++;
+          const existingBoxes = prevBoxes.filter(b => b.animalId === animalId);
+          setCurrentBoxId(newBoxId);
+          return [...prevBoxes, {
+            id: newBoxId,
+            animalId,
+            boxNumber: existingBoxes.length + 1,
+            closed: false,
+          }];
+        } else {
+          setCurrentBoxId(openBoxes[0].id);
+          return prevBoxes; // no mutation
+        }
+      });
     } else {
       setCurrentBoxId(null);
     }
-  }, [boxes]);
+  }, []);
 
   const clearAllData = useCallback(() => {
     setAnimals([]);

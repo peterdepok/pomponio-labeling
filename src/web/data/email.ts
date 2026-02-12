@@ -16,12 +16,18 @@ interface SendReportResult {
   error?: string;
 }
 
+const TIMEOUT_MS = 30_000; // 30-second timeout for email sends
+
 export async function sendReport(params: SendReportParams): Promise<SendReportResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
     const res = await fetch("/api/send-report", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params),
+      signal: controller.signal,
     });
 
     if (!res.ok) {
@@ -31,8 +37,13 @@ export async function sendReport(params: SendReportParams): Promise<SendReportRe
 
     return { ok: true };
   } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      return { ok: false, error: "Request timed out (30s)" };
+    }
     // Network error (offline, CORS, DNS, etc.)
     const msg = err instanceof Error ? err.message : "Unknown error";
     return { ok: false, error: msg };
+  } finally {
+    clearTimeout(timer);
   }
 }
