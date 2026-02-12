@@ -122,7 +122,7 @@ def classify_product(sku: str, name: str) -> str:
 
     # Bones
     if any(k in name_lower for k in ["bone", "marrow", "stock bone"]):
-        if "steak" not in name_lower and "short rib" not in name_lower:
+        if "steak" not in name_lower and "short rib" not in name_lower and "prime rib" not in name_lower:
             return "Bones"
 
     # Ground and burger

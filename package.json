@@ -1,5 +1,5 @@
 {
-  "name": "caldera-decision-engine",
+  "name": "pomponio-labeling-system",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -13,6 +13,7 @@
     "@tailwindcss/vite": "^4.1.18",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "resend": "^6.9.2",
     "tailwindcss": "^4.1.18"
   },
   "devDependencies": {

@@ -1,166 +1,297 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { UnitEconomicsInputs, ScenarioType, WeeklyActual, CalderaState, WholesaleState } from './types';
-import { DEFAULT_UNIT_ECONOMICS, DEFAULT_CASH_POSITION, DEFAULT_FIXED_MONTHLY_COSTS, DEFAULT_WHOLESALE } from './utils/constants';
-import { encodeStateToUrl, decodeStateFromUrl } from './utils/calculations';
-import { UnitEconomics, WholesaleProgram, TestModeler, DecisionFramework, VerticalIntegration } from './components';
+/**
+ * Pomponio Ranch Labeling System - Web UI
+ * Main application with tab navigation between screens.
+ */
 
-type TabType = 'economics' | 'wholesale' | 'modeler' | 'framework' | 'integration';
-
-const TABS: { id: TabType; label: string }[] = [
-  { id: 'economics', label: 'Unit Economics' },
-  { id: 'wholesale', label: 'Wholesale Program' },
-  { id: 'modeler', label: '90 Day Test' },
-  { id: 'framework', label: 'Decision Framework' },
-  { id: 'integration', label: 'Vertical Integration' },
-];
+import { useState, useCallback, useRef } from "react";
+import { TabNav } from "./web/components/TabNav.tsx";
+import type { TabId } from "./web/components/TabNav.tsx";
+import { InfoBar } from "./web/components/InfoBar.tsx";
+import { LabelingScreen } from "./web/screens/LabelingScreen.tsx";
+import { ProductsScreen } from "./web/screens/ProductsScreen.tsx";
+import { BoxesScreen } from "./web/screens/BoxesScreen.tsx";
+import { AnimalsScreen } from "./web/screens/AnimalsScreen.tsx";
+import { ScannerScreen } from "./web/screens/ScannerScreen.tsx";
+import { SettingsScreen } from "./web/screens/SettingsScreen.tsx";
+import { SpeedPopup } from "./web/components/SpeedPopup.tsx";
+import { useWorkflow } from "./web/hooks/useWorkflow.ts";
+import { useAppState } from "./web/hooks/useAppState.ts";
+import { useSettings } from "./web/hooks/useSettings.ts";
+import { useAuditLog } from "./web/hooks/useAuditLog.ts";
+import { useSpeedTracker } from "./web/hooks/useSpeedTracker.ts";
+import { SPEED_ENCOURAGEMENTS, CELEBRATION_ICONS } from "./web/data/celebrations.ts";
+import type { Product } from "./web/data/skus.ts";
 
 function App() {
-  const [activeTab, setActiveTab] = useState<TabType>('economics');
-  const [unitEconomics, setUnitEconomics] = useState<UnitEconomicsInputs>(DEFAULT_UNIT_ECONOMICS);
-  const [wholesale, setWholesale] = useState<WholesaleState>(DEFAULT_WHOLESALE);
-  const [scenario, setScenario] = useState<ScenarioType>('base');
-  const [actuals, setActuals] = useState<WeeklyActual[]>([]);
-  const [cashPosition, setCashPosition] = useState(DEFAULT_CASH_POSITION);
-  const [fixedMonthlyCosts] = useState(DEFAULT_FIXED_MONTHLY_COSTS);
+  const [activeTab, setActiveTab] = useState<TabId>("Products");
+  const [activeProductCategory, setActiveProductCategory] = useState<string>("Steaks");
+  const [lastUsedProduct, setLastUsedProduct] = useState<Product | null>(null);
+  const workflow = useWorkflow();
+  const app = useAppState();
+  const { settings, setSetting, resetToDefaults } = useSettings();
+  const audit = useAuditLog();
+  const speed = useSpeedTracker({ threshold: 4 });
 
-  // Load state from URL on mount
-  useEffect(() => {
-    const savedState = decodeStateFromUrl(window.location.search);
-    if (savedState) {
-      if (savedState.unitEconomics) setUnitEconomics(savedState.unitEconomics);
-      if (savedState.wholesale) setWholesale(savedState.wholesale);
-      if (savedState.scenario) setScenario(savedState.scenario);
-      if (savedState.actuals) setActuals(savedState.actuals);
-      if (savedState.cashPosition) setCashPosition(savedState.cashPosition);
-    }
+  // Stable random message for speed popup (pick new on each show)
+  const speedMsgRef = useRef({ message: "", icon: "" });
+  if (speed.shouldShowEncouragement && !speedMsgRef.current.message) {
+    speedMsgRef.current = {
+      message: SPEED_ENCOURAGEMENTS[Math.floor(Math.random() * SPEED_ENCOURAGEMENTS.length)],
+      icon: CELEBRATION_ICONS[Math.floor(Math.random() * CELEBRATION_ICONS.length)],
+    };
+  } else if (!speed.shouldShowEncouragement) {
+    speedMsgRef.current = { message: "", icon: "" };
+  }
+
+  const currentAnimal = app.animals.find(a => a.id === app.currentAnimalId) ?? null;
+  const currentBox = app.boxes.find(b => b.id === app.currentBoxId) ?? null;
+  const packageCount = app.currentBoxId ? app.getPackagesForBox(app.currentBoxId).length : 0;
+
+  const handleNavigateToProducts = useCallback(() => {
+    setActiveTab("Products");
   }, []);
 
-  // Update URL when state changes (debounced)
-  const updateUrl = useCallback(() => {
-    const state: CalderaState = {
-      unitEconomics,
-      wholesale,
-      scenario,
-      actuals,
-      cashPosition,
-      fixedMonthlyCosts,
-    };
-    const encoded = encodeStateToUrl(state);
-    window.history.replaceState(null, '', `?${encoded}`);
-  }, [unitEconomics, wholesale, scenario, actuals, cashPosition, fixedMonthlyCosts]);
+  const handleProductSelect = useCallback((product: Product) => {
+    // Cancel any current workflow, then select product
+    if (workflow.state !== "idle") {
+      workflow.cancel();
+    }
+    workflow.selectProduct(product.id, product.name, product.sku);
+    audit.logEvent("product_selected", { sku: product.sku, productName: product.name });
+    setLastUsedProduct(product);
+    setActiveTab("Label");
+  }, [workflow, audit]);
 
-  useEffect(() => {
-    const timeout = setTimeout(updateUrl, 500);
-    return () => clearTimeout(timeout);
-  }, [updateUrl]);
+  const handlePackageComplete = useCallback((data: {
+    sku: string;
+    productName: string;
+    weightLb: number;
+    barcode: string;
+  }) => {
+    if (app.currentAnimalId === null || app.currentBoxId === null) {
+      app.showToast("No animal/box selected. Go to Animals tab first.");
+      return;
+    }
+    const product = app.getPackagesForBox(app.currentBoxId); // just to verify context
+    void product;
+    app.createPackage({
+      productId: 0,
+      productName: data.productName,
+      sku: data.sku,
+      animalId: app.currentAnimalId,
+      boxId: app.currentBoxId,
+      weightLb: data.weightLb,
+      barcode: data.barcode,
+    });
+    audit.logEvent("label_printed", {
+      barcode: data.barcode,
+      sku: data.sku,
+      productName: data.productName,
+      weightLb: data.weightLb,
+    });
+    audit.logEvent("package_recorded", {
+      barcode: data.barcode,
+      sku: data.sku,
+      productName: data.productName,
+      weightLb: data.weightLb,
+      animalId: app.currentAnimalId,
+      boxId: app.currentBoxId,
+    });
+    speed.recordPackage();
+  }, [app, audit, speed]);
 
-  const handleUnitEconomicsChange = (key: keyof UnitEconomicsInputs, value: number) => {
-    setUnitEconomics(prev => ({ ...prev, [key]: value }));
-  };
+  const handleCloseBox = useCallback((boxId: number) => {
+    const box = app.boxes.find(b => b.id === boxId);
+    const pkgs = app.getPackagesForBox(boxId);
+    const totalWeight = pkgs.reduce((s, p) => s + p.weightLb, 0);
+    audit.logEvent("box_closed", {
+      boxId,
+      boxNumber: box?.boxNumber ?? 0,
+      packageCount: pkgs.length,
+      totalWeight,
+      labelCount: pkgs.length, // one label per package at close
+    });
+    app.closeBox(boxId);
+    // Auto-create new box
+    if (app.currentAnimalId) {
+      const newBoxId = app.createBox(app.currentAnimalId);
+      const newBox = app.boxes.find(b => b.id === newBoxId);
+      audit.logEvent("box_created", {
+        boxId: newBoxId,
+        animalId: app.currentAnimalId,
+        boxNumber: newBox?.boxNumber ?? (app.boxes.filter(b => b.animalId === app.currentAnimalId).length + 1),
+      });
+      app.setCurrentBoxId(newBoxId);
+    }
+    app.showToast("Box closed. New box opened.");
+  }, [app, audit]);
 
-  const handleCopyShareLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    alert('Link copied to clipboard');
-  };
+  const handleReopenBox = useCallback((boxId: number) => {
+    const box = app.boxes.find(b => b.id === boxId);
+    audit.logEvent("box_reopened", { boxId, boxNumber: box?.boxNumber ?? 0 });
+    app.reopenBox(boxId);
+    app.setCurrentBoxId(boxId);
+    app.showToast(`Box #${box?.boxNumber ?? "?"} reopened.`);
+  }, [app, audit]);
+
+  const handleVoidPackage = useCallback((packageId: number, reason: string) => {
+    const pkg = app.packages.find(p => p.id === packageId);
+    if (!pkg) return;
+    app.voidPackage(packageId, reason);
+    audit.logEvent("package_voided", {
+      packageId,
+      barcode: pkg.barcode,
+      sku: pkg.sku,
+      productName: pkg.productName,
+      reason,
+    });
+    app.showToast(`Package voided: ${pkg.productName}`);
+  }, [app, audit]);
+
+  const handleNewBox = useCallback(() => {
+    if (app.currentAnimalId) {
+      const newBoxId = app.createBox(app.currentAnimalId);
+      const newBox = app.boxes.find(b => b.id === newBoxId);
+      audit.logEvent("box_created", {
+        boxId: newBoxId,
+        animalId: app.currentAnimalId,
+        boxNumber: newBox?.boxNumber ?? (app.boxes.filter(b => b.animalId === app.currentAnimalId).length),
+      });
+      app.setCurrentBoxId(newBoxId);
+      app.showToast("New box created");
+    }
+  }, [app, audit]);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="h-16 bg-[var(--color-secondary-bg)] border-b border-[var(--color-accent)] flex items-center justify-between px-6 flex-shrink-0">
-        <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold text-[var(--color-text-primary)]">Caldera Decision Engine</h1>
-          <span className="text-sm text-[var(--color-text-secondary)]">Sinton & Sons</span>
-        </div>
+    <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: "#0d0d1a" }}>
+      <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
-        <div className="flex items-center gap-4">
-          {/* Tab Navigation */}
-          <nav className="hidden lg:flex gap-1">
-            {TABS.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-2 rounded text-sm transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-[var(--color-accent)] text-[var(--color-text-primary)]'
-                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-accent)] hover:bg-opacity-50'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-
-          {/* Share Button */}
-          <button
-            onClick={handleCopyShareLink}
-            className="px-3 py-1.5 text-sm bg-[var(--color-accent)] text-[var(--color-text-primary)] rounded hover:bg-opacity-80 transition-colors"
-          >
-            Share
-          </button>
-        </div>
-      </header>
-
-      {/* Mobile Tab Navigation */}
-      <div className="lg:hidden bg-[var(--color-secondary-bg)] border-b border-[var(--color-accent)] p-2 flex gap-1 overflow-x-auto">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-3 py-2 rounded text-sm whitespace-nowrap transition-colors ${
-              activeTab === tab.id
-                ? 'bg-[var(--color-accent)] text-[var(--color-text-primary)]'
-                : 'text-[var(--color-text-secondary)]'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Main Content */}
-      <main className="flex-1 p-6 overflow-hidden">
-        {activeTab === 'economics' && (
-          <UnitEconomics
-            inputs={unitEconomics}
-            fixedMonthlyCosts={fixedMonthlyCosts}
-            wholesale={wholesale}
-            onInputChange={handleUnitEconomicsChange}
+      <main className="flex-1 overflow-hidden">
+        {activeTab === "Label" && (
+          <LabelingScreen
+            workflowState={workflow.state}
+            context={workflow.context}
+            onCaptureWeight={workflow.captureWeight}
+            onPrintLabel={workflow.printLabel}
+            onComplete={workflow.complete}
+            onCancel={workflow.cancel}
+            onPackageComplete={handlePackageComplete}
+            onNavigateToProducts={handleNavigateToProducts}
+            showToast={app.showToast}
+            scaleStabilityDelayMs={settings.scaleStabilityDelayMs}
+            scaleMaxWeightLb={settings.scaleMaxWeightLb}
+            printDarkness={settings.printDarkness}
+            logEvent={audit.logEvent}
           />
         )}
-        {activeTab === 'wholesale' && (
-          <WholesaleProgram
-            wholesale={wholesale}
-            onWholesaleChange={setWholesale}
+        {activeTab === "Products" && (
+          <ProductsScreen
+            onSelectProduct={handleProductSelect}
+            activeCategory={activeProductCategory}
+            onCategoryChange={setActiveProductCategory}
+            lastUsedProduct={lastUsedProduct}
           />
         )}
-        {activeTab === 'modeler' && (
-          <TestModeler
-            scenario={scenario}
-            unitEconomics={unitEconomics}
-            cashPosition={cashPosition}
-            actuals={actuals}
-            onScenarioChange={setScenario}
-            onActualsChange={setActuals}
-            onCashPositionChange={setCashPosition}
+        {activeTab === "Boxes" && (
+          <BoxesScreen
+            currentAnimalId={app.currentAnimalId}
+            animalName={currentAnimal?.name ?? null}
+            boxes={app.boxes}
+            getPackagesForBox={app.getPackagesForBox}
+            onCloseBox={handleCloseBox}
+            onReopenBox={handleReopenBox}
+            onNewBox={handleNewBox}
+            showToast={app.showToast}
+            printDarkness={settings.printDarkness}
+            logEvent={audit.logEvent}
           />
         )}
-        {activeTab === 'framework' && (
-          <DecisionFramework
-            actuals={actuals}
-            unitEconomics={unitEconomics}
-            wholesale={wholesale}
+        {activeTab === "Animals" && (
+          <AnimalsScreen
+            animals={app.animals}
+            boxes={app.boxes}
+            packages={app.packages}
+            getPackagesForAnimal={app.getPackagesForAnimal}
+            getManifestData={app.getManifestData}
+            onCreateAnimal={app.createAnimal}
+            onSelectAnimal={(id) => {
+              const name = app.animals.find(a => a.id === id)?.name ?? "Unknown";
+              audit.logEvent("animal_selected", { animalId: id, name });
+              app.selectAnimal(id);
+              app.showToast(`Active animal: ${name}`);
+              setActiveTab("Products");
+            }}
+            onCloseAnimal={app.closeAnimal}
+            emailRecipient={settings.emailRecipient}
+            autoEmailOnAnimalClose={settings.autoEmailOnAnimalClose}
+            autoEmailDailyReport={settings.autoEmailDailyReport}
+            onNavigateToSettings={() => setActiveTab("Settings")}
+            showToast={app.showToast}
+            logEvent={audit.logEvent}
           />
         )}
-        {activeTab === 'integration' && (
-          <VerticalIntegration wholesale={wholesale} />
+        {activeTab === "Scanner" && (
+          <ScannerScreen
+            packages={app.packages}
+            boxes={app.boxes}
+            animals={app.animals}
+            onVoidPackage={handleVoidPackage}
+            getAllPackagesForBox={app.getAllPackagesForBox}
+            emailRecipient={settings.emailRecipient}
+            showToast={app.showToast}
+            logEvent={audit.logEvent}
+          />
+        )}
+        {activeTab === "Settings" && (
+          <SettingsScreen
+            settings={settings}
+            onSetSetting={setSetting}
+            onResetSettings={resetToDefaults}
+            onClearAllData={() => {
+              audit.logEvent("data_cleared", {
+                animalCount: app.animals.length,
+                boxCount: app.boxes.length,
+                packageCount: app.packages.length,
+              });
+              app.clearAllData();
+            }}
+            animalCount={app.animals.length}
+            boxCount={app.boxes.length}
+            packageCount={app.packages.length}
+            showToast={app.showToast}
+            auditEntries={audit.entries}
+            onClearAuditLog={audit.clearLog}
+          />
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="h-10 bg-[var(--color-secondary-bg)] border-t border-[var(--color-accent)] flex items-center justify-between px-6 text-xs text-[var(--color-text-secondary)] flex-shrink-0">
-        <span>Caldera Decision Engine v1.1</span>
-        <span>Westco / Sinton & Sons</span>
-      </footer>
+      <InfoBar
+        animalName={currentAnimal?.name ?? null}
+        boxNumber={currentBox?.boxNumber ?? null}
+        packageCount={packageCount}
+      />
+
+      {/* Speed encouragement popup */}
+      {speed.shouldShowEncouragement && speedMsgRef.current.message && (
+        <SpeedPopup
+          message={speedMsgRef.current.message}
+          icon={speedMsgRef.current.icon}
+          onDismiss={speed.dismissEncouragement}
+        />
+      )}
+
+      {/* Floating toast */}
+      {app.toast && (
+        <div
+          className="fixed bottom-20 right-6 z-50 glass-surface rounded-xl px-6 py-4 max-w-sm"
+          style={{
+            borderLeft: "3px solid #51cf66",
+            animation: "toast-slide-in 300ms ease-out",
+          }}
+        >
+          <span className="text-sm font-semibold text-[#51cf66]">{app.toast}</span>
+        </div>
+      )}
     </div>
   );
 }
