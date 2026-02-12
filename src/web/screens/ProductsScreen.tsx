@@ -150,18 +150,19 @@ export function ProductsScreen({
           />
           <span className="relative z-10">Search</span>
         </button>
-      </div>
 
-      {/* Last used product: prominent repeat button */}
-      {lastUsedProduct && !isSearch && (
-        <div className="flex-shrink-0 px-5 pt-3">
+        {/* Last used: right-aligned pill in the tab bar */}
+        {lastUsedProduct && (
           <button
             onClick={() => onSelectProduct(lastUsedProduct)}
-            className="game-btn w-full rounded-xl px-5 py-3 select-none relative overflow-hidden flex items-center gap-4"
+            className="game-btn ml-auto min-h-[48px] px-4 rounded-xl font-bold whitespace-nowrap select-none flex items-center gap-2 relative overflow-hidden"
             style={{
-              background: "linear-gradient(145deg, #1a2e1a, #142814)",
-              border: "2px solid rgba(81, 207, 102, 0.35)",
-              boxShadow: "0 4px 0 0 #0a1a0a, 0 5px 16px rgba(81, 207, 102, 0.12), inset 0 1px 0 rgba(255,255,255,0.06)",
+              background: "linear-gradient(180deg, #2e7d32, #1b5e20)",
+              boxShadow: "0 4px 0 0 #0a1a0a, 0 5px 12px rgba(81, 207, 102, 0.15), inset 0 1px 0 rgba(255,255,255,0.15)",
+              border: "1px solid rgba(81, 207, 102, 0.3)",
+              color: "#ffffff",
+              fontSize: "13px",
+              textShadow: "0 1px 3px rgba(0,0,0,0.4)",
             }}
           >
             <div className="game-gloss" />
@@ -173,33 +174,11 @@ export function ProductsScreen({
                 borderRadius: "0 0 12px 12px",
               }}
             />
-            <span
-              className="relative z-10 select-none"
-              style={{ fontSize: "28px", filter: "drop-shadow(0 0 6px rgba(81, 207, 102, 0.4))" }}
-            >
-              &#x21bb;
-            </span>
-            <div className="relative z-10 flex-1 text-left">
-              <div className="text-xs uppercase tracking-[0.15em]" style={{ color: "#51cf66" }}>
-                Last Used
-              </div>
-              <div className="text-lg font-bold text-[#e8e8e8] leading-tight">
-                {lastUsedProduct.name}
-              </div>
-            </div>
-            <div
-              className="relative z-10 rounded-lg px-4 py-2 font-bold text-sm uppercase tracking-wide select-none"
-              style={{
-                background: "linear-gradient(180deg, #51cf66, #40a855)",
-                color: "#0a1a0a",
-                boxShadow: "0 2px 0 0 #2d8a3e, 0 3px 8px rgba(81, 207, 102, 0.3)",
-              }}
-            >
-              Select Again
-            </div>
+            <span className="relative z-10" style={{ fontSize: "18px" }}>&#x21bb;</span>
+            <span className="relative z-10 truncate max-w-[180px]">{lastUsedProduct.name}</span>
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Content: either category grid or search interface */}
       {isSearch ? (
