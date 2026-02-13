@@ -81,9 +81,10 @@ export function generateLabelZpl(
     `^BCN,${BARCODE_HEIGHT},Y,N,N`,         // Code 128: normal orientation, height, interpretation below, no check in data, no interpretation above
     `^FD${barcode}^FS`,
 
-    // --- Product Name (cut) ---
-    `^FO${PRODUCT_NAME_X},${PRODUCT_NAME_Y}`,
-    "^A0N,38,38",                            // Font 0, normal rotation, 38 dot height/width
+    // --- Product Name (cut), centered on label ---
+    `^FO0,${PRODUCT_NAME_Y}`,
+    "^A0N,50,50",                            // Font 0, normal rotation, 50 dot height/width (38 + 30%)
+    `^FB${LABEL_WIDTH_DOTS},1,0,C`,          // Field block: full label width, centered
     `^FD${displayName}^FS`,
 
     // --- Net Weight label (centered above USDA bug) ---
@@ -147,9 +148,10 @@ export function generateBoxLabelZpl(
     `^BCN,${BARCODE_HEIGHT},Y,N,N`,         // Code 128: normal orientation, height, interpretation below, no check in data, no interpretation above
     `^FD${barcode}^FS`,
 
-    // --- Product Name with count (cut) ---
-    `^FO${PRODUCT_NAME_X},${PRODUCT_NAME_Y}`,
-    "^A0N,38,38",
+    // --- Product Name with count (cut), centered on label ---
+    `^FO0,${PRODUCT_NAME_Y}`,
+    "^A0N,50,50",
+    `^FB${LABEL_WIDTH_DOTS},1,0,C`,          // Field block: full label width, centered
     `^FD${displayName}^FS`,
 
     // --- Net Weight label (centered above USDA bug) ---
