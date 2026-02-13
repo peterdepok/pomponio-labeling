@@ -20,7 +20,7 @@ const LABEL_HEIGHT_DOTS = DPI * 4;  // 812
 const BARCODE_X = 30;
 const BARCODE_Y = 280;
 const BARCODE_MODULE_WIDTH = 3;    // 3-dot module for reliable scanning at arm's length
-const BARCODE_HEIGHT = 200;        // dots tall (about 0.99")
+const BARCODE_HEIGHT = 120;        // dots tall (about 0.59")
 
 // "Keep Refrigerated or Frozen" is pre-printed below barcode, so we skip that.
 
