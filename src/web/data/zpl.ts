@@ -18,7 +18,7 @@ const LABEL_HEIGHT_DOTS = DPI * 4;  // 812
 // --- Barcode zone (left side, vertically centered in the middle band) ---
 // The barcode sits roughly from x=30 to x=350, y=270 to y=480
 const BARCODE_X = 30;
-const BARCODE_Y = 432;             // moved down 0.75" (152 dots) from original 280
+const BARCODE_Y = 385;
 const BARCODE_MODULE_WIDTH = 3;    // 3-dot module for reliable scanning at arm's length
 const BARCODE_HEIGHT = 100;        // dots tall (about 0.49")
 
