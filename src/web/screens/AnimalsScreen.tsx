@@ -9,6 +9,7 @@ import { useState } from "react";
 import { TouchButton } from "../components/TouchButton.tsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.tsx";
 import { KeyboardModal } from "../components/KeyboardModal.tsx";
+import { useBarcodeScanner } from "../hooks/useBarcodeScanner.ts";
 import type { Animal, Box, Package } from "../hooks/useAppState.ts";
 import { generateAnimalManifestCsv, generateDailyProductionCsv, downloadCsv } from "../data/csv.ts";
 import { sendReport } from "../data/email.ts";
@@ -58,16 +59,35 @@ export function AnimalsScreen({
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [newName, setNewName] = useState("");
   const [showNameKeyboard, setShowNameKeyboard] = useState(false);
+  const [newAnimalPhase, setNewAnimalPhase] = useState<"scan-ready" | "confirm">("scan-ready");
   const [confirmCloseId, setConfirmCloseId] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
 
   const openAnimals = animals.filter(a => a.closedAt === null);
 
+  // Listen for USB barcode scanner while the new animal dialog is in scan-ready phase.
+  // Disabled when KeyboardModal is open to avoid keystroke conflicts.
+  useBarcodeScanner({
+    enabled: showNewDialog && !showNameKeyboard && newAnimalPhase === "scan-ready",
+    minLength: 4,
+    alphanumeric: true,
+    onScan: (barcode: string) => {
+      setNewName(barcode);
+      setNewAnimalPhase("confirm");
+    },
+  });
+
   const handleCreate = () => {
+    setNewName("");
+    setNewAnimalPhase("scan-ready");
+    setShowNewDialog(true);
+  };
+
+  const handleTypeName = () => {
     const today = new Date().toLocaleDateString();
     const defaultName = `Beef #${openAnimals.length + 1} - ${today}`;
     setNewName(defaultName);
-    setShowNewDialog(true);
+    setShowNameKeyboard(true);
   };
 
   const doCreate = () => {
@@ -273,7 +293,7 @@ export function AnimalsScreen({
         )}
       </div>
 
-      {/* New animal dialog */}
+      {/* New animal dialog (two-phase: scan-ready then confirm) */}
       {showNewDialog && (
         <div
           className="fixed inset-0 flex items-center justify-center z-50"
@@ -301,32 +321,86 @@ export function AnimalsScreen({
 
             <div className="p-8">
               <h2 className="text-2xl font-bold text-[#e8e8e8] mb-6">Start New Animal</h2>
-              <label className="text-xs uppercase tracking-[0.15em] text-[#606080] mb-2 block">Animal Name</label>
-              <div
-                onClick={() => setShowNameKeyboard(true)}
-                className="w-full h-16 px-4 text-lg rounded-xl bg-[#0d0d1a] flex items-center cursor-pointer mb-6"
-                style={{
-                  border: "2px solid #2a2a4a",
-                  boxShadow: "inset 0 2px 6px rgba(0,0,0,0.4)",
-                  color: newName ? "#e8e8e8" : "#404060",
-                }}
-              >
-                {newName || "Tap to edit..."}
-              </div>
-              <div className="flex gap-4">
-                <TouchButton
-                  text="Cancel"
-                  style="secondary"
-                  onClick={() => setShowNewDialog(false)}
-                  className="flex-1"
-                />
-                <TouchButton
-                  text="Start"
-                  style="success"
-                  onClick={doCreate}
-                  className="flex-1"
-                />
-              </div>
+
+              {newAnimalPhase === "scan-ready" && (
+                <>
+                  {/* Scan prompt */}
+                  <div className="flex flex-col items-center gap-4 mb-8">
+                    <div
+                      className="text-6xl select-none"
+                      style={{
+                        animation: "anim-scan-pulse 2s ease-in-out infinite",
+                        filter: "drop-shadow(0 0 16px rgba(0, 212, 255, 0.3))",
+                      }}
+                    >
+                      {"\uD83D\uDCF7"}
+                    </div>
+                    <div className="text-lg text-[#a0a0b0] text-center">
+                      Scan animal tag barcode
+                    </div>
+                    <div className="text-sm text-[#606080]">or</div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex gap-4">
+                    <TouchButton
+                      text="Cancel"
+                      style="secondary"
+                      onClick={() => setShowNewDialog(false)}
+                      className="flex-1"
+                    />
+                    <TouchButton
+                      text="Type Name"
+                      style="primary"
+                      onClick={handleTypeName}
+                      className="flex-1"
+                    />
+                  </div>
+                </>
+              )}
+
+              {newAnimalPhase === "confirm" && (
+                <>
+                  <label className="text-xs uppercase tracking-[0.15em] text-[#606080] mb-2 block">Animal ID</label>
+                  <div
+                    onClick={() => setShowNameKeyboard(true)}
+                    className="w-full h-16 px-4 text-lg rounded-xl bg-[#0d0d1a] flex items-center cursor-pointer mb-6"
+                    style={{
+                      border: "2px solid #00d4ff",
+                      boxShadow: "inset 0 2px 6px rgba(0,0,0,0.4), 0 0 8px rgba(0, 212, 255, 0.15)",
+                      color: newName ? "#e8e8e8" : "#404060",
+                    }}
+                  >
+                    {newName || "Tap to edit..."}
+                  </div>
+                  <div className="flex gap-4">
+                    <TouchButton
+                      text="Cancel"
+                      style="secondary"
+                      onClick={() => {
+                        setShowNewDialog(false);
+                        setNewName("");
+                      }}
+                      className="flex-1"
+                    />
+                    <TouchButton
+                      text="Rescan"
+                      style="secondary"
+                      onClick={() => {
+                        setNewName("");
+                        setNewAnimalPhase("scan-ready");
+                      }}
+                      className="flex-1"
+                    />
+                    <TouchButton
+                      text="Start"
+                      style="success"
+                      onClick={doCreate}
+                      className="flex-1"
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -342,6 +416,7 @@ export function AnimalsScreen({
         onConfirm={(val) => {
           setNewName(val);
           setShowNameKeyboard(false);
+          setNewAnimalPhase("confirm");
         }}
         onCancel={() => setShowNameKeyboard(false)}
       />

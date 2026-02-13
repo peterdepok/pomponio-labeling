@@ -16,8 +16,10 @@ interface UseBarcodeScannerOptions {
   onScan: (barcode: string) => void;
   /** Max milliseconds between keystrokes to count as scanner input (default 80). */
   maxIntervalMs?: number;
-  /** Minimum digit length for a valid scan (default 12). */
+  /** Minimum character length for a valid scan (default 12). */
   minLength?: number;
+  /** When true, accept letters and digits. When false (default), digits only. */
+  alphanumeric?: boolean;
 }
 
 export interface UseBarcodeScannerReturn {
@@ -28,7 +30,7 @@ export interface UseBarcodeScannerReturn {
 }
 
 export function useBarcodeScanner(options: UseBarcodeScannerOptions): UseBarcodeScannerReturn {
-  const { enabled, onScan, maxIntervalMs = 80, minLength = 12 } = options;
+  const { enabled, onScan, maxIntervalMs = 80, minLength = 12, alphanumeric = false } = options;
 
   const bufferRef = useRef<string>("");
   const lastKeystrokeRef = useRef<number>(0);
@@ -76,8 +78,9 @@ export function useBarcodeScanner(options: UseBarcodeScannerOptions): UseBarcode
         return;
       }
 
-      // Only accumulate digit characters
-      if (/^\d$/.test(e.key)) {
+      // Accumulate characters (digits only, or alphanumeric if enabled)
+      const charPattern = alphanumeric ? /^[a-zA-Z0-9]$/ : /^\d$/;
+      if (charPattern.test(e.key)) {
         bufferRef.current += e.key;
         lastKeystrokeRef.current = now;
         setScanning(true);
@@ -89,7 +92,7 @@ export function useBarcodeScanner(options: UseBarcodeScannerOptions): UseBarcode
       window.removeEventListener("keydown", handleKeyDown);
       resetBuffer();
     };
-  }, [enabled, maxIntervalMs, minLength, resetBuffer]);
+  }, [enabled, maxIntervalMs, minLength, alphanumeric, resetBuffer]);
 
   return { lastScan, scanning };
 }
