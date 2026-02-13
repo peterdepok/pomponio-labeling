@@ -13,6 +13,7 @@ import { LabelPreview } from "../components/LabelPreview.tsx";
 import { generateBoxLabels } from "../data/barcode.ts";
 import type { BoxLabel } from "../data/barcode.ts";
 import { generateBoxLabelZpl } from "../data/zpl.ts";
+import { sendToPrinter } from "../data/printer.ts";
 import type { Box, Package } from "../hooks/useAppState.ts";
 import type { LogEventFn } from "../hooks/useAuditLog.ts";
 
@@ -123,7 +124,11 @@ export function BoxesScreen({
         label.weightLb,
         { darkness: printDarkness },
       );
-      console.log("[Box Label ZPL]\n" + zpl);
+      sendToPrinter(zpl).then(result => {
+        if (!result.ok) {
+          showToast(`Print failed: ${result.error ?? "unknown"}`);
+        }
+      });
     }
   };
 
