@@ -8,6 +8,7 @@ import type { SettingsValues, ScaleMode, BaudRate } from "../hooks/useSettings.t
 import type { AuditEntry } from "../hooks/useAuditLog.ts";
 import { TouchButton } from "../components/TouchButton.tsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.tsx";
+import { sendToPrinter } from "../data/printer.ts";
 
 // --- Props ---
 
@@ -273,9 +274,15 @@ export function SettingsScreen({
 
   const handleTestPrint = () => {
     const darkness = settings.printDarkness;
-    const zpl = `^XA\n~SD${darkness}\n^PW812\n^LL812\n^FO50,350\n^A0N,50,50\n^FDTest Print OK^FS\n^XZ`;
+    const zpl = `^XA\n~SD${darkness}\n^PW812\n^LL812\n^POI\n^FO50,350\n^A0N,50,50\n^FDTest Print OK^FS\n^XZ`;
     console.log("[Test ZPL Command]\n" + zpl);
-    showToast("Test ZPL sent to console.");
+    sendToPrinter(zpl).then(result => {
+      if (result.ok) {
+        showToast("Test print sent.");
+      } else {
+        showToast("Print failed: " + (result.error ?? "unknown error"));
+      }
+    });
   };
 
   const handleResetConfirm = () => {
