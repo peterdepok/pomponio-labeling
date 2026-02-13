@@ -1,0 +1,4 @@
+Flask>=3.0.0
+pyserial>=3.5
+pywin32>=306
+pyinstaller>=6.0

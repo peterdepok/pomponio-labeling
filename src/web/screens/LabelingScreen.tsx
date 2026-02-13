@@ -8,8 +8,10 @@ import { useCallback, useEffect, useRef } from "react";
 import { WorkflowState } from "../hooks/useWorkflow.ts";
 import type { WorkflowContext } from "../hooks/useWorkflow.ts";
 import { useSimulatedScale } from "../hooks/useSimulatedScale.ts";
+import { useScaleApi } from "../hooks/useScaleApi.ts";
 import { generateBarcode } from "../data/barcode.ts";
 import { generateLabelZpl } from "../data/zpl.ts";
+import { sendToPrinter } from "../data/printer.ts";
 import { StatusIndicator } from "../components/StatusIndicator.tsx";
 import { WeightDisplay } from "../components/WeightDisplay.tsx";
 import { TouchButton } from "../components/TouchButton.tsx";
@@ -36,6 +38,7 @@ interface LabelingScreenProps {
   scaleStabilityDelayMs: number;
   scaleMaxWeightLb: number;
   printDarkness: number;
+  scaleMode: "simulated" | "serial";
   logEvent: LogEventFn;
 }
 
@@ -52,12 +55,20 @@ export function LabelingScreen({
   scaleStabilityDelayMs,
   scaleMaxWeightLb,
   printDarkness,
+  scaleMode,
   logEvent,
 }: LabelingScreenProps) {
-  const scale = useSimulatedScale({
+  // Both hooks must be called unconditionally (React rules).
+  // The `enabled` flag on useScaleApi prevents fetch calls when not active.
+  const simulatedScale = useSimulatedScale({
     stabilityDelayMs: scaleStabilityDelayMs,
     maxWeight: scaleMaxWeightLb,
   });
+  const apiScale = useScaleApi({
+    maxWeight: scaleMaxWeightLb,
+    enabled: scaleMode === "serial",
+  });
+  const scale = scaleMode === "serial" ? apiScale : simulatedScale;
 
   // Track whether we already fired the package-complete for this label cycle
   const completedRef = useRef(false);
@@ -106,6 +117,14 @@ export function LabelingScreen({
 
       // Log ZPL to console for development/debugging
       console.log("[ZPL Label Command]\n" + zpl);
+
+      // Send to physical printer via Flask bridge (fire-and-forget)
+      sendToPrinter(zpl).then(result => {
+        if (!result.ok) {
+          showToast(`Print error: ${result.error}`);
+          console.error("[Print Error]", result.error);
+        }
+      });
 
       onPrintLabel(barcode);
     }
@@ -192,24 +211,35 @@ export function LabelingScreen({
               stable={scale.stable}
               locked={scale.locked}
             />
-            <div className="px-3 card-recessed rounded-xl py-3 flex-shrink-0">
-              <label className="text-xs uppercase tracking-[0.15em] text-[#606080] mb-2 block">
-                Simulated Scale (drag to set weight)
-              </label>
-              <input
-                type="range"
-                min="0"
-                max={scale.maxWeight}
-                step="0.01"
-                value={scale.weight}
-                onChange={e => scale.updateWeight(parseFloat(e.target.value))}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-[#606080] mt-1">
-                <span>0 lb</span>
-                <span>{scale.maxWeight} lb</span>
+            {scaleMode === "simulated" ? (
+              <div className="px-3 card-recessed rounded-xl py-3 flex-shrink-0">
+                <label className="text-xs uppercase tracking-[0.15em] text-[#606080] mb-2 block">
+                  Simulated Scale (drag to set weight)
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max={scale.maxWeight}
+                  step="0.01"
+                  value={scale.weight}
+                  onChange={e => scale.updateWeight(parseFloat(e.target.value))}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-[#606080] mt-1">
+                  <span>0 lb</span>
+                  <span>{scale.maxWeight} lb</span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="px-3 card-recessed rounded-xl py-3 flex-shrink-0 text-center">
+                <div className="text-xs uppercase tracking-[0.15em] text-[#606080] mb-1">
+                  Brecknell 6710U
+                </div>
+                <div className="text-sm text-[#a0a0b0]">
+                  Reading from scale...
+                </div>
+              </div>
+            )}
             <div
               className="text-center text-sm py-3 rounded-xl flex-shrink-0"
               style={{

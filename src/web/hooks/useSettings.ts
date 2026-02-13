@@ -35,7 +35,7 @@ const DEFAULTS: SettingsValues = {
   emailRecipient: "",
   autoEmailOnAnimalClose: true,
   autoEmailDailyReport: true,
-  printerName: "ZDesigner ZP230D",
+  printerName: "Zebra ZP230d (ZPL)",
   printDarkness: 15,
   scaleMode: "simulated",
   serialPort: "COM3",

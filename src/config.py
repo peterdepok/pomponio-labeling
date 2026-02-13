@@ -17,7 +17,7 @@ DEFAULT_CONFIG = {
         "baud_rate": "9600",
     },
     "printer": {
-        "name": "ZDesigner ZP230D",
+        "name": "Zebra ZP230d (ZPL)",
         "template_dir": "data/templates",
     },
     "database": {

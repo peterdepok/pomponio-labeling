@@ -194,6 +194,7 @@ function App() {
             scaleStabilityDelayMs={settings.scaleStabilityDelayMs}
             scaleMaxWeightLb={settings.scaleMaxWeightLb}
             printDarkness={settings.printDarkness}
+            scaleMode={settings.scaleMode}
             logEvent={audit.logEvent}
           />
         )}
