@@ -20,12 +20,12 @@ const LABEL_HEIGHT_DOTS = DPI * 4;  // 812
 const BARCODE_X = 30;
 const BARCODE_Y = 280;
 const BARCODE_MODULE_WIDTH = 3;    // 3-dot module for reliable scanning at arm's length
-const BARCODE_HEIGHT = 120;        // dots tall (about 0.59")
+const BARCODE_HEIGHT = 100;        // dots tall (about 0.49")
 
 // "Keep Refrigerated or Frozen" is pre-printed below barcode, so we skip that.
 
 // --- Product name zone (right of barcode) ---
-const PRODUCT_NAME_X = 400;
+const PRODUCT_NAME_X = 440;        // right of barcode zone to prevent overlap
 const PRODUCT_NAME_Y = 300;
 
 // --- Net weight zone (centered above the pre-printed USDA bug in bottom-right) ---
@@ -81,9 +81,9 @@ export function generateLabelZpl(
     `^BCN,${BARCODE_HEIGHT},Y,N,N`,         // Code 128: normal orientation, height, interpretation below, no check in data, no interpretation above
     `^FD${barcode}^FS`,
 
-    // --- Product Name ---
+    // --- Product Name (cut) ---
     `^FO${PRODUCT_NAME_X},${PRODUCT_NAME_Y}`,
-    "^A0N,35,35",                            // Font 0, normal rotation, 35 dot height/width
+    "^A0N,38,38",                            // Font 0, normal rotation, 38 dot height/width
     `^FD${displayName}^FS`,
 
     // --- Net Weight label (centered above USDA bug) ---
@@ -147,9 +147,9 @@ export function generateBoxLabelZpl(
     `^BCN,${BARCODE_HEIGHT},Y,N,N`,         // Code 128: normal orientation, height, interpretation below, no check in data, no interpretation above
     `^FD${barcode}^FS`,
 
-    // --- Product Name with count ---
+    // --- Product Name with count (cut) ---
     `^FO${PRODUCT_NAME_X},${PRODUCT_NAME_Y}`,
-    "^A0N,35,35",
+    "^A0N,38,38",
     `^FD${displayName}^FS`,
 
     // --- Net Weight label (centered above USDA bug) ---
