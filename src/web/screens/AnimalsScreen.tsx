@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { TouchButton } from "../components/TouchButton.tsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.tsx";
+import { KeyboardModal } from "../components/KeyboardModal.tsx";
 import type { Animal, Box, Package } from "../hooks/useAppState.ts";
 import { generateAnimalManifestCsv, generateDailyProductionCsv, downloadCsv } from "../data/csv.ts";
 import { sendReport } from "../data/email.ts";
@@ -56,6 +57,7 @@ export function AnimalsScreen({
 }: AnimalsScreenProps) {
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [newName, setNewName] = useState("");
+  const [showNameKeyboard, setShowNameKeyboard] = useState(false);
   const [confirmCloseId, setConfirmCloseId] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
 
@@ -300,24 +302,17 @@ export function AnimalsScreen({
             <div className="p-8">
               <h2 className="text-2xl font-bold text-[#e8e8e8] mb-6">Start New Animal</h2>
               <label className="text-xs uppercase tracking-[0.15em] text-[#606080] mb-2 block">Animal Name</label>
-              <input
-                type="text"
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") doCreate(); }}
-                className="w-full h-16 px-4 text-lg rounded-xl bg-[#0d0d1a] text-[#e8e8e8] focus:outline-none mb-6"
+              <div
+                onClick={() => setShowNameKeyboard(true)}
+                className="w-full h-16 px-4 text-lg rounded-xl bg-[#0d0d1a] flex items-center cursor-pointer mb-6"
                 style={{
                   border: "2px solid #2a2a4a",
                   boxShadow: "inset 0 2px 6px rgba(0,0,0,0.4)",
+                  color: newName ? "#e8e8e8" : "#404060",
                 }}
-                onFocus={e => {
-                  e.currentTarget.style.borderColor = "#00d4ff";
-                }}
-                onBlur={e => {
-                  e.currentTarget.style.borderColor = "#2a2a4a";
-                }}
-                autoFocus
-              />
+              >
+                {newName || "Tap to edit..."}
+              </div>
               <div className="flex gap-4">
                 <TouchButton
                   text="Cancel"
@@ -336,6 +331,20 @@ export function AnimalsScreen({
           </div>
         </div>
       )}
+
+      {/* Keyboard modal for animal name */}
+      <KeyboardModal
+        isOpen={showNameKeyboard}
+        title="Animal Name"
+        initialValue={newName}
+        placeholder="Enter animal name..."
+        showNumbers
+        onConfirm={(val) => {
+          setNewName(val);
+          setShowNameKeyboard(false);
+        }}
+        onCancel={() => setShowNameKeyboard(false)}
+      />
 
       {/* Confirm close dialog */}
       {confirmCloseId !== null && (

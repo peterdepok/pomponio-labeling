@@ -29,7 +29,8 @@ export type AuditEventType =
   | "data_cleared"
   | "package_voided"
   | "box_audited"
-  | "manifest_resent";
+  | "manifest_resent"
+  | "app_exit_initiated";
 
 // --- Payload map (discriminated by eventType) ---
 
@@ -55,6 +56,7 @@ export interface AuditPayloads {
   package_voided: { packageId: number; barcode: string; sku: string; productName: string; reason: string };
   box_audited: { boxId: number; boxNumber: number; packageCount: number; voidedCount: number };
   manifest_resent: { animalId: number; animalName: string; recipient: string; success: boolean };
+  app_exit_initiated: Record<string, never>;
 }
 
 // --- Entry stored in localStorage ---

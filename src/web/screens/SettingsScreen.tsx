@@ -3,11 +3,12 @@
  * Five section cards with inline controls. No modals.
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import type { SettingsValues, ScaleMode, BaudRate } from "../hooks/useSettings.ts";
 import type { AuditEntry } from "../hooks/useAuditLog.ts";
 import { TouchButton } from "../components/TouchButton.tsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.tsx";
+import { KeyboardModal } from "../components/KeyboardModal.tsx";
 import { sendToPrinter } from "../data/printer.ts";
 
 // --- Props ---
@@ -205,21 +206,10 @@ function SectionCard({
 
 // --- Input styling ---
 
-const INPUT_CLASS =
-  "w-full h-16 px-4 text-lg rounded-xl bg-[#0d0d1a] text-[#e8e8e8] focus:outline-none";
-
 const INPUT_STYLE: React.CSSProperties = {
   border: "2px solid #2a2a4a",
   boxShadow: "inset 0 2px 6px rgba(0,0,0,0.4)",
 };
-
-function focusBorder(e: React.FocusEvent<HTMLInputElement>) {
-  e.currentTarget.style.borderColor = "#00d4ff";
-}
-
-function blurBorder(e: React.FocusEvent<HTMLInputElement>) {
-  e.currentTarget.style.borderColor = "#2a2a4a";
-}
 
 // --- Main component ---
 
@@ -237,28 +227,14 @@ export function SettingsScreen({
 }: SettingsScreenProps) {
   const [confirmAction, setConfirmAction] = useState<"reset" | "clear" | "clear-audit" | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [keyboardField, setKeyboardField] = useState<"email" | "printer" | "comPort" | "maxWeight" | null>(null);
 
   // Debounced email input
   const [emailDraft, setEmailDraft] = useState(settings.emailRecipient);
-  const emailTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   // Keep draft in sync if settings change externally
   useEffect(() => {
     setEmailDraft(settings.emailRecipient);
   }, [settings.emailRecipient]);
-
-  const handleEmailChange = (val: string) => {
-    setEmailDraft(val);
-    if (emailTimerRef.current) clearTimeout(emailTimerRef.current);
-    emailTimerRef.current = setTimeout(() => {
-      onSetSetting("emailRecipient", val.trim());
-    }, 800);
-  };
-
-  const handleEmailBlur = () => {
-    if (emailTimerRef.current) clearTimeout(emailTimerRef.current);
-    onSetSetting("emailRecipient", emailDraft.trim());
-  };
 
   // Online/offline listener
   useEffect(() => {
@@ -330,16 +306,15 @@ export function SettingsScreen({
           <SectionHeader title="Email / Reports" color="#00d4ff" />
 
           <FieldLabel text="Report Email Address" />
-          <input
-            type="email"
-            value={emailDraft}
-            onChange={e => handleEmailChange(e.target.value)}
-            onBlur={handleEmailBlur}
-            placeholder="office@pomponioranch.com"
-            className={INPUT_CLASS}
+          <div
+            onClick={() => setKeyboardField("email")}
+            className="w-full h-16 px-4 text-lg rounded-xl bg-[#0d0d1a] flex items-center cursor-pointer"
             style={INPUT_STYLE}
-            onFocus={focusBorder}
-          />
+          >
+            <span style={{ color: emailDraft ? "#e8e8e8" : "#404060" }}>
+              {emailDraft || "Tap to enter email..."}
+            </span>
+          </div>
 
           <div className="mt-4 space-y-1">
             <ToggleRow
@@ -364,15 +339,15 @@ export function SettingsScreen({
           <SectionHeader title="Printer" color="#ffa500" />
 
           <FieldLabel text="Printer Name" />
-          <input
-            type="text"
-            value={settings.printerName}
-            onChange={e => onSetSetting("printerName", e.target.value)}
-            className={INPUT_CLASS + " mb-4"}
+          <div
+            onClick={() => setKeyboardField("printer")}
+            className="w-full h-16 px-4 text-lg rounded-xl bg-[#0d0d1a] flex items-center cursor-pointer mb-4"
             style={INPUT_STYLE}
-            onFocus={focusBorder}
-            onBlur={blurBorder}
-          />
+          >
+            <span style={{ color: settings.printerName ? "#e8e8e8" : "#404060" }}>
+              {settings.printerName || "Tap to enter printer name..."}
+            </span>
+          </div>
 
           <div className="flex items-center gap-2 mb-4">
             <span className="text-sm text-[#606080]">Connection:</span>
@@ -439,15 +414,15 @@ export function SettingsScreen({
             <div className="mt-4 space-y-4">
               <div>
                 <FieldLabel text="COM Port" />
-                <input
-                  type="text"
-                  value={settings.serialPort}
-                  onChange={e => onSetSetting("serialPort", e.target.value)}
-                  className={INPUT_CLASS}
+                <div
+                  onClick={() => setKeyboardField("comPort")}
+                  className="w-full h-16 px-4 text-lg rounded-xl bg-[#0d0d1a] flex items-center cursor-pointer"
                   style={INPUT_STYLE}
-                  onFocus={focusBorder}
-                  onBlur={blurBorder}
-                />
+                >
+                  <span style={{ color: settings.serialPort ? "#e8e8e8" : "#404060" }}>
+                    {settings.serialPort || "Tap to enter COM port..."}
+                  </span>
+                </div>
               </div>
               <div>
                 <FieldLabel text="Baud Rate" />
@@ -479,20 +454,15 @@ export function SettingsScreen({
 
           <div className="mt-4">
             <FieldLabel text="Max Weight (lb)" />
-            <input
-              type="number"
-              min="1"
-              max="500"
-              value={settings.scaleMaxWeightLb}
-              onChange={e => {
-                const v = Number(e.target.value);
-                if (v > 0) onSetSetting("scaleMaxWeightLb", v);
-              }}
-              className={INPUT_CLASS}
+            <div
+              onClick={() => setKeyboardField("maxWeight")}
+              className="w-full h-16 px-4 text-lg rounded-xl bg-[#0d0d1a] flex items-center cursor-pointer"
               style={INPUT_STYLE}
-              onFocus={focusBorder}
-              onBlur={blurBorder}
-            />
+            >
+              <span style={{ color: "#e8e8e8" }}>
+                {settings.scaleMaxWeightLb}
+              </span>
+            </div>
           </div>
         </SectionCard>
 
@@ -663,6 +633,62 @@ export function SettingsScreen({
           onCancel={() => setConfirmAction(null)}
         />
       )}
+
+      {/* Keyboard modals for settings fields */}
+      <KeyboardModal
+        isOpen={keyboardField === "email"}
+        title="Report Email Address"
+        initialValue={emailDraft}
+        placeholder="office@pomponioranch.com"
+        showSymbols
+        onConfirm={(val) => {
+          const trimmed = val.trim().toLowerCase();
+          setEmailDraft(trimmed);
+          onSetSetting("emailRecipient", trimmed);
+          setKeyboardField(null);
+        }}
+        onCancel={() => setKeyboardField(null)}
+      />
+      <KeyboardModal
+        isOpen={keyboardField === "printer"}
+        title="Printer Name"
+        initialValue={settings.printerName}
+        placeholder="Zebra ZP230d (ZPL)"
+        showNumbers
+        showSymbols
+        onConfirm={(val) => {
+          onSetSetting("printerName", val);
+          setKeyboardField(null);
+        }}
+        onCancel={() => setKeyboardField(null)}
+      />
+      <KeyboardModal
+        isOpen={keyboardField === "comPort"}
+        title="COM Port"
+        initialValue={settings.serialPort}
+        placeholder="COM3"
+        showNumbers
+        onConfirm={(val) => {
+          onSetSetting("serialPort", val);
+          setKeyboardField(null);
+        }}
+        onCancel={() => setKeyboardField(null)}
+      />
+      <KeyboardModal
+        isOpen={keyboardField === "maxWeight"}
+        title="Max Weight (lb)"
+        initialValue={String(settings.scaleMaxWeightLb)}
+        placeholder="30"
+        showNumbers
+        onConfirm={(val) => {
+          const v = Number(val);
+          if (v > 0 && v <= 500) {
+            onSetSetting("scaleMaxWeightLb", v);
+          }
+          setKeyboardField(null);
+        }}
+        onCancel={() => setKeyboardField(null)}
+      />
     </div>
   );
 }

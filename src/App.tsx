@@ -20,6 +20,8 @@ import { useSettings } from "./web/hooks/useSettings.ts";
 import { useAuditLog } from "./web/hooks/useAuditLog.ts";
 import { useSpeedTracker } from "./web/hooks/useSpeedTracker.ts";
 import { SPEED_ENCOURAGEMENTS, CELEBRATION_ICONS } from "./web/data/celebrations.ts";
+import { ConfirmDialog } from "./web/components/ConfirmDialog.tsx";
+import { sendDailyReport } from "./web/data/reports.ts";
 import type { Product } from "./web/data/skus.ts";
 
 function App() {
@@ -30,6 +32,7 @@ function App() {
     } catch { return "Steaks"; }
   });
   const [lastUsedProduct, setLastUsedProduct] = useState<Product | null>(null);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   // Persist active category across page reloads
   useEffect(() => {
@@ -175,9 +178,35 @@ function App() {
     }
   }, [app, audit]);
 
+  const handleExitConfirm = useCallback(async () => {
+    setShowExitConfirm(false);
+    audit.logEvent("app_exit_initiated", {});
+
+    // Send daily report if email is configured and there is data
+    if (app.animals.length > 0) {
+      await sendDailyReport({
+        animals: app.animals,
+        boxes: app.boxes,
+        packages: app.packages,
+        emailRecipient: settings.emailRecipient,
+        logEvent: audit.logEvent,
+        showToast: app.showToast,
+      });
+    }
+
+    // Attempt to close the window; fall back to blank page
+    try {
+      window.close();
+    } catch { /* browser may block */ }
+    // If window.close() didn't work (most browsers block it), go blank
+    setTimeout(() => {
+      window.location.href = "about:blank";
+    }, 500);
+  }, [app, settings, audit]);
+
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: "#0d0d1a" }}>
-      <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <TabNav activeTab={activeTab} onTabChange={setActiveTab} onExit={() => setShowExitConfirm(true)} />
 
       <main className="flex-1 overflow-hidden">
         {activeTab === "Label" && (
@@ -291,6 +320,17 @@ function App() {
           message={speedMsgRef.current.message}
           icon={speedMsgRef.current.icon}
           onDismiss={speed.dismissEncouragement}
+        />
+      )}
+
+      {/* Exit confirmation dialog */}
+      {showExitConfirm && (
+        <ConfirmDialog
+          title="End Session"
+          message="Send daily report and close the app?"
+          confirmText="Exit"
+          onConfirm={handleExitConfirm}
+          onCancel={() => setShowExitConfirm(false)}
         />
       )}
 

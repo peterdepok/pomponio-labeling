@@ -8,6 +8,7 @@ export type TabId = "Label" | "Products" | "Boxes" | "Animals" | "Scanner" | "Se
 interface TabNavProps {
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
+  onExit?: () => void;
 }
 
 const TABS: TabId[] = ["Animals", "Products", "Label", "Boxes", "Scanner", "Settings"];
@@ -21,7 +22,7 @@ const TAB_COLORS: Record<TabId, { fill: string; fillLight: string; shadow: strin
   Settings: { fill: "#546e7a", fillLight: "#78909c", shadow: "#37474f" },
 };
 
-export function TabNav({ activeTab, onTabChange }: TabNavProps) {
+export function TabNav({ activeTab, onTabChange, onExit }: TabNavProps) {
   return (
     <nav
       className="h-[64px] flex items-center gap-2 px-3 flex-shrink-0 relative"
@@ -98,6 +99,33 @@ export function TabNav({ activeTab, onTabChange }: TabNavProps) {
           );
         })}
       </div>
+
+      {/* Exit button: danger styled, far right */}
+      {onExit && (
+        <button
+          onClick={onExit}
+          className="game-btn h-[44px] px-5 rounded-lg font-extrabold select-none relative overflow-hidden flex-shrink-0"
+          style={{
+            minWidth: "80px",
+            fontSize: "16px",
+            background: "linear-gradient(180deg, #e53935, #c62828)",
+            boxShadow: "0 4px 0 0 #8e0000, 0 5px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
+            color: "#ffffff",
+            textShadow: "0 1px 3px rgba(0,0,0,0.4)",
+          }}
+        >
+          <div className="game-gloss" />
+          <div
+            className="game-btn-ledge"
+            style={{
+              height: "4px",
+              background: "#8e0000",
+              borderRadius: "0 0 8px 8px",
+            }}
+          />
+          <span className="relative z-10">Exit</span>
+        </button>
+      )}
     </nav>
   );
 }

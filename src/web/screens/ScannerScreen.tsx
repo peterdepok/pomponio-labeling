@@ -13,6 +13,7 @@ import { useBarcodeScanner } from "../hooks/useBarcodeScanner.ts";
 import { parseBarcode } from "../data/barcode.ts";
 import { generateAnimalManifestCsv } from "../data/csv.ts";
 import { sendReport } from "../data/email.ts";
+import { KeyboardModal } from "../components/KeyboardModal.tsx";
 import { TouchButton } from "../components/TouchButton.tsx";
 import type { Package, Animal, Box } from "../hooks/useAppState.ts";
 import type { LogEventFn } from "../hooks/useAuditLog.ts";
@@ -48,6 +49,7 @@ export function ScannerScreen({
   const [scanMode, setScanMode] = useState<ScannerMode>({ mode: "ready" });
   const [lastBarcode, setLastBarcode] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [showReasonKeyboard, setShowReasonKeyboard] = useState(false);
 
   const handleScan = useCallback((barcode: string) => {
     setLastBarcode(barcode);
@@ -436,29 +438,17 @@ export function ScannerScreen({
                 <label className="text-xs uppercase tracking-[0.15em] text-[#606080] mb-2 block">
                   Reason for voiding (required)
                 </label>
-                <input
-                  type="text"
-                  value={scanMode.reason}
-                  onChange={e =>
-                    setScanMode({ ...scanMode, reason: e.target.value })
-                  }
-                  onKeyDown={e => {
-                    if (e.key === "Enter") handleVoidConfirm();
-                  }}
-                  placeholder="e.g. Damaged label, wrong weight, barcode unreadable"
-                  className="w-full h-14 px-4 text-base rounded-xl bg-[#0d0d1a] text-[#e8e8e8] focus:outline-none"
+                <div
+                  onClick={() => setShowReasonKeyboard(true)}
+                  className="w-full h-14 px-4 text-base rounded-xl bg-[#0d0d1a] flex items-center cursor-pointer"
                   style={{
                     border: "2px solid #2a2a4a",
                     boxShadow: "inset 0 2px 6px rgba(0,0,0,0.4)",
+                    color: scanMode.reason ? "#e8e8e8" : "#404060",
                   }}
-                  onFocus={e => {
-                    e.currentTarget.style.borderColor = "#ff6b6b";
-                  }}
-                  onBlur={e => {
-                    e.currentTarget.style.borderColor = "#2a2a4a";
-                  }}
-                  autoFocus
-                />
+                >
+                  {scanMode.reason || "Tap to enter reason..."}
+                </div>
               </div>
 
               <div className="flex gap-3">
@@ -513,6 +503,21 @@ export function ScannerScreen({
           </div>
         )}
       </div>
+
+      {/* Keyboard modal for void reason */}
+      <KeyboardModal
+        isOpen={showReasonKeyboard}
+        title="Void Reason"
+        initialValue={scanMode.mode === "void-confirm" ? scanMode.reason : ""}
+        placeholder="e.g. Damaged label, wrong weight"
+        onConfirm={(val) => {
+          if (scanMode.mode === "void-confirm") {
+            setScanMode({ ...scanMode, reason: val });
+          }
+          setShowReasonKeyboard(false);
+        }}
+        onCancel={() => setShowReasonKeyboard(false)}
+      />
     </div>
   );
 }
