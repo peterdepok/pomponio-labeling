@@ -70,16 +70,17 @@ export function TabNav({ activeTab, onTabChange }: TabNavProps) {
             <button
               key={tab}
               onClick={() => onTabChange(tab)}
-              className="game-btn h-[44px] px-6 rounded-lg font-bold text-sm select-none relative overflow-hidden"
+              className="game-btn h-[44px] px-6 rounded-lg font-extrabold select-none relative overflow-hidden"
               style={{
                 minWidth: "100px",
+                fontSize: "16px",
                 background: isActive
                   ? `linear-gradient(180deg, ${colors.fillLight}, ${colors.fill})`
-                  : "linear-gradient(180deg, #1e2240, #161a30)",
+                  : "linear-gradient(180deg, #2a2a4a, #1e2240)",
                 boxShadow: isActive
                   ? `0 4px 0 0 ${colors.shadow}, 0 5px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)`
-                  : "0 3px 0 0 #0a0e1a, 0 4px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.04)",
-                color: isActive ? "#ffffff" : "#606080",
+                  : "0 3px 0 0 #0a0e1a, 0 4px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)",
+                color: isActive ? "#ffffff" : "#c0c0d0",
                 textShadow: isActive ? "0 1px 3px rgba(0,0,0,0.4)" : "none",
               }}
             >
