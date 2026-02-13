@@ -215,7 +215,7 @@ export function ProductsScreen({
           {searchQuery.trim() && (
             <div className="flex-1 overflow-y-auto min-h-0">
               {searchResults.length > 0 ? (
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-5 gap-4">
                   {searchResults.map(product => {
                     const cat = classifyProduct(product.sku, product.name);
                     return (
@@ -248,7 +248,7 @@ export function ProductsScreen({
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto p-5">
-          <div className="grid grid-cols-4 gap-5">
+          <div className="grid grid-cols-5 gap-5">
             {currentProducts.map(product => (
               <ProductButton
                 key={product.sku}
