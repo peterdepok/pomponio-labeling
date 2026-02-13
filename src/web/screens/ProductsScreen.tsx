@@ -95,8 +95,8 @@ export function ProductsScreen({
                 boxShadow: isActive
                   ? `0 4px 0 0 ${colors.shadow}, 0 5px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)`
                   : "0 3px 0 0 #141428, 0 4px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)",
-                color: isActive ? "#ffffff" : "#808090",
-                fontSize: "14px",
+                color: isActive ? "#ffffff" : "#c0c0d0",
+                fontSize: "16px",
                 textShadow: isActive ? "0 1px 3px rgba(0,0,0,0.4)" : "none",
               }}
             >
@@ -114,7 +114,7 @@ export function ProductsScreen({
                 className="relative z-10 text-xs font-mono rounded-full px-1.5 py-0.5"
                 style={{
                   background: isActive ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.06)",
-                  color: isActive ? "#ffffff" : "#606080",
+                  color: isActive ? "#ffffff" : "#a0a0b8",
                   fontSize: "11px",
                 }}
               >
@@ -135,8 +135,8 @@ export function ProductsScreen({
             boxShadow: isSearch
               ? "0 4px 0 0 #808080, 0 5px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.4)"
               : "0 3px 0 0 #141428, 0 4px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)",
-            color: isSearch ? "#1a1a2e" : "#808090",
-            fontSize: "14px",
+            color: isSearch ? "#1a1a2e" : "#c0c0d0",
+            fontSize: "16px",
           }}
         >
           {isSearch && <div className="game-gloss" />}
