@@ -33,9 +33,9 @@ const PRODUCT_NAME_Y = 300;
 // Using ^FB (field block) with ^FO for centering over the USDA stamp.
 const WEIGHT_BLOCK_X = 500;        // left edge of centering block
 const WEIGHT_BLOCK_WIDTH = 300;    // width of centering block (covers USDA area)
-const WEIGHT_LABEL_Y = 480;
-const WEIGHT_VALUE_Y = 520;
-const WEIGHT_OZ_Y = 575;          // pounds + ounces line below the decimal weight
+const WEIGHT_LABEL_Y = 385;        // aligned with barcode Y for same visual row
+const WEIGHT_VALUE_Y = 420;
+const WEIGHT_OZ_Y = 475;          // pounds + ounces line below the decimal weight
 
 /**
  * Generate ZPL for the dynamic portion of the Pomponio Ranch 4x4 label.
