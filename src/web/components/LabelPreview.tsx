@@ -199,6 +199,9 @@ export function LabelPreview({ barcode, productName, weightLb, scale = 0.6 }: La
         <div style={{ fontSize: 18 * s, fontWeight: "bold", color: "#1a1a1a" }}>
           {weightLb.toFixed(2)} lb
         </div>
+        <div style={{ fontSize: 10 * s, color: "#444", marginTop: 1 * s }}>
+          {Math.floor(weightLb)} lb {((weightLb - Math.floor(weightLb)) * 16).toFixed(1)} oz
+        </div>
       </div>
     </div>
   );

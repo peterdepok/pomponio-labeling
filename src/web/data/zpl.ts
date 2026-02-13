@@ -19,8 +19,8 @@ const LABEL_HEIGHT_DOTS = DPI * 4;  // 812
 // The barcode sits roughly from x=30 to x=350, y=270 to y=480
 const BARCODE_X = 30;
 const BARCODE_Y = 280;
-const BARCODE_MODULE_WIDTH = 2;    // 2-dot module for scannable UPC-A at 203 DPI
-const BARCODE_HEIGHT = 150;        // dots tall (about 0.74")
+const BARCODE_MODULE_WIDTH = 3;    // 3-dot module for reliable scanning at arm's length
+const BARCODE_HEIGHT = 100;        // dots tall (about 0.49")
 
 // "Keep Refrigerated or Frozen" is pre-printed below barcode, so we skip that.
 
@@ -35,6 +35,7 @@ const WEIGHT_BLOCK_X = 500;        // left edge of centering block
 const WEIGHT_BLOCK_WIDTH = 300;    // width of centering block (covers USDA area)
 const WEIGHT_LABEL_Y = 480;
 const WEIGHT_VALUE_Y = 520;
+const WEIGHT_OZ_Y = 575;          // pounds + ounces line below the decimal weight
 
 /**
  * Generate ZPL for the dynamic portion of the Pomponio Ranch 4x4 label.
@@ -52,6 +53,9 @@ export function generateLabelZpl(
 ): string {
   const darkness = options?.darkness ?? 15;
   const weightStr = weightLb.toFixed(2) + " lb";
+  const wholeLb = Math.floor(weightLb);
+  const oz = ((weightLb - wholeLb) * 16).toFixed(1);
+  const ozStr = `${wholeLb} lb ${oz} oz`;
 
   // Truncate product name if it would overflow the label width
   // At font size 35, roughly 18 chars fit in the right half
@@ -69,11 +73,12 @@ export function generateLabelZpl(
     // Label dimensions
     `^PW${LABEL_WIDTH_DOTS}`,
     `^LL${LABEL_HEIGHT_DOTS}`,
+    "^POI",                                  // Invert orientation (180 degrees) for ZP 230D feed direction
 
     // --- UPC-A Barcode ---
     `^FO${BARCODE_X},${BARCODE_Y}`,
     `^BY${BARCODE_MODULE_WIDTH}`,           // module width
-    `^BU${BARCODE_HEIGHT},Y,N,Y`,           // UPC-A: height, interpretation line, check digit, interpretation above
+    `^BU${BARCODE_HEIGHT},Y,Y,N`,           // UPC-A: height, interpretation below, check digit shown, no interpretation above
     `^FD${barcode}^FS`,
 
     // --- Product Name ---
@@ -92,6 +97,12 @@ export function generateLabelZpl(
     "^A0N,50,50",                            // Large bold weight value
     `^FB${WEIGHT_BLOCK_WIDTH},1,0,C`,        // Field block: Center aligned
     `^FD${weightStr}^FS`,
+
+    // --- Net Weight in pounds + ounces (smaller, below decimal weight) ---
+    `^FO${WEIGHT_BLOCK_X},${WEIGHT_OZ_Y}`,
+    "^A0N,24,24",
+    `^FB${WEIGHT_BLOCK_WIDTH},1,0,C`,
+    `^FD${ozStr}^FS`,
 
     // --- Label end ---
     "^XZ",
@@ -115,6 +126,9 @@ export function generateBoxLabelZpl(
 ): string {
   const boxDarkness = options?.darkness ?? 15;
   const weightStr = totalWeightLb.toFixed(2) + " lb";
+  const wholeLb = Math.floor(totalWeightLb);
+  const oz = ((totalWeightLb - wholeLb) * 16).toFixed(1);
+  const ozStr = `${wholeLb} lb ${oz} oz`;
   const countLine = `${count}x ${productName}`;
   const displayName = countLine.length > 24
     ? countLine.slice(0, 23) + "..."
@@ -125,11 +139,12 @@ export function generateBoxLabelZpl(
     `~SD${boxDarkness}`,
     `^PW${LABEL_WIDTH_DOTS}`,
     `^LL${LABEL_HEIGHT_DOTS}`,
+    "^POI",                                  // Invert orientation (180 degrees) for ZP 230D feed direction
 
     // --- UPC-A Barcode ---
     `^FO${BARCODE_X},${BARCODE_Y}`,
     `^BY${BARCODE_MODULE_WIDTH}`,
-    `^BU${BARCODE_HEIGHT},Y,N,Y`,
+    `^BU${BARCODE_HEIGHT},Y,Y,N`,           // UPC-A: interpretation below with check digit, no interpretation above
     `^FD${barcode}^FS`,
 
     // --- Product Name with count ---
@@ -148,6 +163,12 @@ export function generateBoxLabelZpl(
     "^A0N,50,50",
     `^FB${WEIGHT_BLOCK_WIDTH},1,0,C`,
     `^FD${weightStr}^FS`,
+
+    // --- Net Weight in pounds + ounces (smaller, below decimal weight) ---
+    `^FO${WEIGHT_BLOCK_X},${WEIGHT_OZ_Y}`,
+    "^A0N,24,24",
+    `^FB${WEIGHT_BLOCK_WIDTH},1,0,C`,
+    `^FD${ozStr}^FS`,
 
     "^XZ",
   ];
@@ -178,6 +199,7 @@ export const LABEL_PREVIEW = {
     widthIn: WEIGHT_BLOCK_WIDTH / DPI,
     labelYIn: WEIGHT_LABEL_Y / DPI,
     valueYIn: WEIGHT_VALUE_Y / DPI,
+    ozYIn: WEIGHT_OZ_Y / DPI,
     fontSizePt: 20,
   },
 } as const;
