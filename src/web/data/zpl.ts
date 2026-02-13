@@ -78,7 +78,7 @@ export function generateLabelZpl(
     // --- UPC-A Barcode ---
     `^FO${BARCODE_X},${BARCODE_Y}`,
     `^BY${BARCODE_MODULE_WIDTH}`,           // module width
-    `^BU${BARCODE_HEIGHT},Y,Y,N`,           // UPC-A: height, interpretation below, check digit shown, no interpretation above
+    `^BCN,${BARCODE_HEIGHT},Y,N,N`,         // Code 128: normal orientation, height, interpretation below, no check in data, no interpretation above
     `^FD${barcode}^FS`,
 
     // --- Product Name ---
@@ -144,7 +144,7 @@ export function generateBoxLabelZpl(
     // --- UPC-A Barcode ---
     `^FO${BARCODE_X},${BARCODE_Y}`,
     `^BY${BARCODE_MODULE_WIDTH}`,
-    `^BU${BARCODE_HEIGHT},Y,Y,N`,           // UPC-A: interpretation below with check digit, no interpretation above
+    `^BCN,${BARCODE_HEIGHT},Y,N,N`,         // Code 128: normal orientation, height, interpretation below, no check in data, no interpretation above
     `^FD${barcode}^FS`,
 
     // --- Product Name with count ---
