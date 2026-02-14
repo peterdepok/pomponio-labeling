@@ -233,6 +233,24 @@ def api_email():
     return jsonify({"ok": True, "queued": True, "error": result.get("error", "Send failed")})
 
 
+@app.route("/api/email/test", methods=["POST"])
+def api_email_test():
+    """Send a test email and return the raw result (no queuing on failure)."""
+    body = request.get_json(silent=True) or {}
+    to = body.get("to", "")
+
+    if not to:
+        return jsonify({"ok": False, "error": "No recipient address provided"}), 400
+
+    result = send_email(
+        config, to,
+        "Pomponio Ranch Test Email",
+        "sku,product,weight\nTEST,Test Product,1.0",
+        "test.csv",
+    )
+    return jsonify(result)
+
+
 @app.route("/api/audit", methods=["POST"])
 def api_audit():
     """Persist a single audit event to the server-side log file."""

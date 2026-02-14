@@ -233,6 +233,8 @@ export function SettingsScreen({
   const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "applying" | "restarting">("idle");
   const [updateInfo, setUpdateInfo] = useState<{ commitsBehind: number; summary: string } | null>(null);
 
+  const [emailTesting, setEmailTesting] = useState(false);
+
   // Debounced email input
   const [emailDraft, setEmailDraft] = useState(settings.emailRecipient);
   // Keep draft in sync if settings change externally
@@ -378,6 +380,35 @@ export function SettingsScreen({
               onChange={v => onSetSetting("autoEmailDailyReport", v)}
             />
           </div>
+
+          {emailDraft && (
+            <div className="mt-4">
+              <TouchButton
+                text={emailTesting ? "Sending..." : "Send Test Email"}
+                size="sm"
+                style="secondary"
+                disabled={emailTesting}
+                onClick={() => {
+                  setEmailTesting(true);
+                  fetch("/api/email/test", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ to: emailDraft }),
+                  })
+                    .then(res => res.json())
+                    .then(data => {
+                      if (data.ok) {
+                        showToast("Test email sent successfully.");
+                      } else {
+                        showToast(`Email failed: ${data.error || "unknown"}`);
+                      }
+                    })
+                    .catch(() => showToast("Email test failed: network error."))
+                    .finally(() => setEmailTesting(false));
+                }}
+              />
+            </div>
+          )}
 
           <div className="text-xs text-[#606080] mt-3">
             When email is blank, reports download locally only.
