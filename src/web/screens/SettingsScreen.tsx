@@ -301,7 +301,7 @@ export function SettingsScreen({
         });
         setUpdateStatus("available");
       } else {
-        showToast("App is up to date.");
+        showToast(`App is up to date. (${data.currentCommit || "?"})`);
         setUpdateStatus("idle");
       }
     } catch {

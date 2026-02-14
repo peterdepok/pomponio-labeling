@@ -40,6 +40,12 @@ def check_for_update() -> dict:
         and (if available) commitsBehind and summary.
     """
     try:
+        # Detect current branch name (could be main or master)
+        branch_result = _run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], timeout=5
+        )
+        branch = branch_result.stdout.strip() if branch_result.returncode == 0 else "main"
+
         # Fetch latest refs from origin
         fetch = _run(["git", "fetch", "origin"], timeout=30)
         if fetch.returncode != 0:
@@ -49,8 +55,15 @@ def check_for_update() -> dict:
         head = _run(["git", "rev-parse", "HEAD"], timeout=5)
         current_commit = head.stdout.strip()
 
-        # Get remote HEAD
-        remote = _run(["git", "rev-parse", "origin/main"], timeout=5)
+        # Get remote HEAD for the tracked branch
+        remote = _run(["git", "rev-parse", f"origin/{branch}"], timeout=5)
+        if remote.returncode != 0:
+            return {
+                "updateAvailable": False,
+                "error": f"No remote branch origin/{branch}",
+                "currentCommit": current_commit[:8],
+                "branch": branch,
+            }
         latest_commit = remote.stdout.strip()
 
         if current_commit == latest_commit:
@@ -62,13 +75,13 @@ def check_for_update() -> dict:
 
         # Count commits behind
         count = _run(
-            ["git", "rev-list", "--count", "HEAD..origin/main"], timeout=5
+            ["git", "rev-list", "--count", f"HEAD..origin/{branch}"], timeout=5
         )
         commits_behind = int(count.stdout.strip()) if count.returncode == 0 else 0
 
         # Get one-line summaries of new commits
         log = _run(
-            ["git", "log", "--oneline", "HEAD..origin/main"], timeout=5
+            ["git", "log", "--oneline", f"HEAD..origin/{branch}"], timeout=5
         )
         summary = log.stdout.strip() if log.returncode == 0 else ""
 
@@ -95,8 +108,14 @@ def apply_update() -> dict:
         On failure, error contains the stderr output.
     """
     try:
+        # Detect current branch
+        branch_result = _run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], timeout=5
+        )
+        branch = branch_result.stdout.strip() if branch_result.returncode == 0 else "main"
+
         # Pull latest
-        pull = _run(["git", "pull", "origin", "main"], timeout=60)
+        pull = _run(["git", "pull", "origin", branch], timeout=60)
         if pull.returncode != 0:
             logger.error("git pull failed: %s", pull.stderr)
             return {"ok": False, "error": f"git pull failed: {pull.stderr.strip()}"}
