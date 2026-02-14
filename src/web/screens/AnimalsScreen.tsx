@@ -9,6 +9,7 @@ import { useState } from "react";
 import { TouchButton } from "../components/TouchButton.tsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.tsx";
 import { KeyboardModal } from "../components/KeyboardModal.tsx";
+import { ScanGunIcon } from "../components/ScanGunIcon.tsx";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner.ts";
 import type { Animal, Box, Package } from "../hooks/useAppState.ts";
 import { generateAnimalManifestCsv, generateDailyProductionCsv, downloadCsv } from "../data/csv.ts";
@@ -327,13 +328,13 @@ export function AnimalsScreen({
                   {/* Scan prompt */}
                   <div className="flex flex-col items-center gap-4 mb-8">
                     <div
-                      className="text-6xl select-none"
+                      className="select-none"
                       style={{
                         animation: "anim-scan-pulse 2s ease-in-out infinite",
                         filter: "drop-shadow(0 0 16px rgba(0, 212, 255, 0.3))",
                       }}
                     >
-                      {"\uD83D\uDCF7"}
+                      <ScanGunIcon size={72} color="#e8e8e8" />
                     </div>
                     <div className="text-lg text-[#a0a0b0] text-center">
                       Scan animal tag barcode

@@ -15,6 +15,7 @@ import { generateAnimalManifestCsv } from "../data/csv.ts";
 import { sendReport } from "../data/email.ts";
 import { KeyboardModal } from "../components/KeyboardModal.tsx";
 import { TouchButton } from "../components/TouchButton.tsx";
+import { ScanGunIcon } from "../components/ScanGunIcon.tsx";
 import type { Package, Animal, Box } from "../hooks/useAppState.ts";
 import type { LogEventFn } from "../hooks/useAuditLog.ts";
 
@@ -50,6 +51,7 @@ export function ScannerScreen({
   const [lastBarcode, setLastBarcode] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [showReasonKeyboard, setShowReasonKeyboard] = useState(false);
+  const [showManualKeyboard, setShowManualKeyboard] = useState(false);
 
   const handleScan = useCallback((barcode: string) => {
     setLastBarcode(barcode);
@@ -190,13 +192,13 @@ export function ScannerScreen({
         }}
       >
         <div>
-          <h2 className="text-2xl font-bold text-[#e8e8e8]">Scanner</h2>
-          <div className="text-xs uppercase tracking-[0.15em] text-[#606080] mt-1">
+          <h2 className="text-3xl font-bold text-[#e8e8e8]">Scanner</h2>
+          <div className="text-sm uppercase tracking-[0.15em] text-[#808098] mt-1">
             Scan barcodes to audit or void packages
           </div>
         </div>
         {lastBarcode && (
-          <div className="text-sm font-mono text-[#606080]">
+          <div className="text-base font-mono text-[#a0a0b0]">
             Last scan: {lastBarcode}
           </div>
         )}
@@ -208,34 +210,30 @@ export function ScannerScreen({
         {scanMode.mode === "ready" && (
           <div className="flex flex-col items-center justify-center h-full gap-6">
             <div
-              className="text-8xl select-none"
+              className="select-none"
               style={{
                 animation: "anim-scan-pulse 2s ease-in-out infinite",
                 filter: "drop-shadow(0 0 20px rgba(255, 109, 0, 0.3))",
               }}
             >
-              {"\uD83D\uDCF7"}
+              <ScanGunIcon size={96} color="#e8e8e8" />
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-[#e8e8e8] mb-2">
+              <div className="text-3xl font-bold text-[#e8e8e8] mb-2">
                 Scan a Barcode
               </div>
-              <div className="text-[#606080] text-lg max-w-md">
+              <div className="text-[#a0a0b0] text-xl max-w-md">
                 Point the scanner at a package label to void it, or at a box label to audit contents.
               </div>
             </div>
-            {/* Manual entry hint */}
-            <div
-              className="card-recessed rounded-xl px-6 py-3 text-center"
-              style={{ maxWidth: "400px" }}
-            >
-              <div className="text-xs uppercase tracking-[0.15em] text-[#606080] mb-1">
-                Manual Entry
-              </div>
-              <div className="text-sm text-[#a0a0b0]">
-                Type 12 digits and press Enter to simulate a scan
-              </div>
-            </div>
+            {/* Manual entry button */}
+            <TouchButton
+              text="Enter Barcode"
+              style="secondary"
+              size="lg"
+              onClick={() => setShowManualKeyboard(true)}
+              width="280px"
+            />
           </div>
         )}
 
@@ -251,7 +249,7 @@ export function ScannerScreen({
               }}
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-[#e8e8e8]">
+                <h3 className="text-2xl font-bold text-[#e8e8e8]">
                   {scanMode.pkg.productName}
                 </h3>
                 {scanMode.pkg.voided && (
@@ -289,6 +287,7 @@ export function ScannerScreen({
                 <TouchButton
                   text="Back"
                   style="secondary"
+                  size="lg"
                   onClick={handleBack}
                   className="flex-1"
                 />
@@ -296,6 +295,7 @@ export function ScannerScreen({
                   <TouchButton
                     text="Void Package"
                     style="danger"
+                    size="lg"
                     onClick={() => handleVoidStart(scanMode.pkg)}
                     className="flex-1"
                   />
@@ -319,22 +319,22 @@ export function ScannerScreen({
               {/* Box header */}
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-xl font-bold text-[#e8e8e8]">
+                  <h3 className="text-2xl font-bold text-[#e8e8e8]">
                     Box #{scanMode.box.boxNumber}
                   </h3>
-                  <div className="text-sm text-[#a0a0b0] mt-1">
+                  <div className="text-base text-[#a0a0b0] mt-1">
                     Animal: {scanMode.animal.name}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm text-[#a0a0b0]">
+                  <div className="text-base text-[#a0a0b0]">
                     {scanMode.packages.filter(p => !p.voided).length} active packages
                   </div>
-                  <div className="text-sm text-[#a0a0b0]">
+                  <div className="text-base text-[#a0a0b0]">
                     {scanMode.packages.filter(p => !p.voided).reduce((s, p) => s + p.weightLb, 0).toFixed(1)} lb
                   </div>
                   {scanMode.packages.some(p => p.voided) && (
-                    <div className="text-xs text-[#ff6b6b] mt-1">
+                    <div className="text-sm text-[#ff6b6b] mt-1">
                       {scanMode.packages.filter(p => p.voided).length} voided
                     </div>
                   )}
@@ -366,19 +366,19 @@ export function ScannerScreen({
                         }}
                       >
                         <div className="flex-1">
-                          <span className="text-sm text-[#e8e8e8]">
+                          <span className="text-base text-[#e8e8e8]">
                             {pkg.productName}
                           </span>
-                          <span className="text-xs font-mono text-[#00d4ff] ml-3">
+                          <span className="text-sm font-mono text-[#00d4ff] ml-3">
                             {pkg.sku}
                           </span>
                         </div>
-                        <div className="text-sm text-[#a0a0b0] w-24 text-right">
+                        <div className="text-base text-[#a0a0b0] w-24 text-right">
                           {pkg.weightLb.toFixed(2)} lb
                         </div>
                         {pkg.voided ? (
                           <span
-                            className="text-xs text-[#ff6b6b] w-16 text-right"
+                            className="text-sm text-[#ff6b6b] w-16 text-right"
                           >
                             VOID
                           </span>
@@ -396,6 +396,7 @@ export function ScannerScreen({
                 <TouchButton
                   text="Back"
                   style="secondary"
+                  size="lg"
                   onClick={handleBack}
                   className="flex-1"
                 />
@@ -403,6 +404,7 @@ export function ScannerScreen({
                   <TouchButton
                     text={sending ? "Sending..." : "Resend Manifest"}
                     style="primary"
+                    size="lg"
                     onClick={handleResendManifest}
                     className="flex-1"
                   />
@@ -423,7 +425,7 @@ export function ScannerScreen({
                 boxShadow: "0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)",
               }}
             >
-              <h3 className="text-xl font-bold text-[#ff6b6b] mb-4">
+              <h3 className="text-2xl font-bold text-[#ff6b6b] mb-4">
                 Void Package
               </h3>
 
@@ -440,7 +442,7 @@ export function ScannerScreen({
                 </label>
                 <div
                   onClick={() => setShowReasonKeyboard(true)}
-                  className="w-full h-14 px-4 text-base rounded-xl bg-[#0d0d1a] flex items-center cursor-pointer"
+                  className="w-full h-16 px-4 text-lg rounded-xl bg-[#0d0d1a] flex items-center cursor-pointer"
                   style={{
                     border: "2px solid #2a2a4a",
                     boxShadow: "inset 0 2px 6px rgba(0,0,0,0.4)",
@@ -455,12 +457,14 @@ export function ScannerScreen({
                 <TouchButton
                   text="Cancel"
                   style="secondary"
+                  size="lg"
                   onClick={handleBack}
                   className="flex-1"
                 />
                 <TouchButton
                   text="Confirm Void"
                   style="danger"
+                  size="lg"
                   onClick={handleVoidConfirm}
                   className="flex-1"
                 />
@@ -481,28 +485,46 @@ export function ScannerScreen({
               }}
             >
               <div
-                className="text-5xl mb-4 select-none"
+                className="text-6xl mb-4 select-none"
                 style={{ filter: "drop-shadow(0 0 12px rgba(255, 165, 0, 0.3))" }}
               >
                 {"\u26A0\uFE0F"}
               </div>
-              <h3 className="text-xl font-bold text-[#ffa500] mb-2">
+              <h3 className="text-2xl font-bold text-[#ffa500] mb-2">
                 {scanMode.message}
               </h3>
-              <div className="text-sm font-mono text-[#606080] mb-6">
+              <div className="text-base font-mono text-[#a0a0b0] mb-6">
                 Scanned: {scanMode.barcode}
               </div>
               <TouchButton
                 text="Scan Again"
                 style="primary"
+                size="lg"
                 onClick={handleBack}
                 className="mx-auto"
-                width="200px"
+                width="280px"
               />
             </div>
           </div>
         )}
       </div>
+
+      {/* Keyboard modal for manual barcode entry */}
+      <KeyboardModal
+        isOpen={showManualKeyboard}
+        title="Enter Barcode"
+        initialValue=""
+        placeholder="12-digit barcode"
+        showNumbers
+        onConfirm={(val) => {
+          setShowManualKeyboard(false);
+          const trimmed = val.trim();
+          if (trimmed.length > 0) {
+            handleScan(trimmed);
+          }
+        }}
+        onCancel={() => setShowManualKeyboard(false)}
+      />
 
       {/* Keyboard modal for void reason */}
       <KeyboardModal
@@ -539,11 +561,11 @@ function DetailRow({
 }) {
   return (
     <div className="flex items-baseline gap-3">
-      <span className="text-xs uppercase tracking-[0.15em] text-[#606080] w-24 flex-shrink-0">
+      <span className="text-sm uppercase tracking-[0.15em] text-[#808098] w-24 flex-shrink-0">
         {label}
       </span>
       <span
-        className={`text-sm ${mono ? "font-mono" : ""}`}
+        className={`text-base ${mono ? "font-mono" : ""}`}
         style={{
           color: red ? "#ff6b6b" : accent ? "#00d4ff" : "#a0a0b0",
         }}
