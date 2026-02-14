@@ -30,6 +30,7 @@ from src.scale import Scale, ScaleError  # noqa: E402
 from src.printer import Printer, PrinterError  # noqa: E402
 from bridge.email_sender import send_email  # noqa: E402
 from bridge.email_queue import enqueue, get_queue_length, start_retry_thread  # noqa: E402
+from bridge.audit_store import append_event, start_audit_scheduler  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -228,6 +229,20 @@ def api_email():
     return jsonify({"ok": True, "queued": True, "error": result.get("error", "Send failed")})
 
 
+@app.route("/api/audit", methods=["POST"])
+def api_audit():
+    """Persist a single audit event to the server-side log file."""
+    body = request.get_json(silent=True) or {}
+    event_type = body.get("eventType", "")
+    timestamp = body.get("timestamp", "")
+
+    if not event_type or not timestamp:
+        return jsonify({"ok": False, "error": "Missing eventType or timestamp"}), 400
+
+    append_event(body)
+    return jsonify({"ok": True})
+
+
 @app.route("/api/export-csv", methods=["POST"])
 def api_export_csv():
     """Save a CSV file to USB drive or local fallback directory."""
@@ -326,6 +341,7 @@ def create_app():
     )
     start_scale_poller()
     start_retry_thread(config, interval=300)
+    start_audit_scheduler(config)
     return app
 
 

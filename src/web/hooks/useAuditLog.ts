@@ -109,6 +109,12 @@ export function useAuditLog(maxEntries: number = DEFAULT_MAX_ENTRIES): UseAuditL
       eventType,
       payload,
     };
+    // Persist to server-side audit log (fire-and-forget)
+    fetch("/api/audit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(entry),
+    }).catch(() => {}); // Swallow errors; localStorage is the primary store
     setEntries(prev => {
       const updated = [...prev, entry];
       // FIFO eviction: keep only the most recent maxEntries
