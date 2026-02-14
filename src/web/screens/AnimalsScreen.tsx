@@ -142,7 +142,10 @@ export function AnimalsScreen({
       });
       setSending(false);
 
-      if (result.ok) {
+      if (result.ok && result.queued) {
+        logEvent("manifest_emailed", { animalId, animalName: animal.name, recipient: emailRecipient, success: true });
+        showToast("Email queued, will retry when online.");
+      } else if (result.ok) {
         logEvent("manifest_emailed", { animalId, animalName: animal.name, recipient: emailRecipient, success: true });
         showToast(`Manifest emailed to ${emailRecipient}`);
       } else {
@@ -179,7 +182,10 @@ export function AnimalsScreen({
       });
       setSending(false);
 
-      if (result.ok) {
+      if (result.ok && result.queued) {
+        logEvent("daily_report_emailed", { recipient: emailRecipient, success: true });
+        showToast("Email queued, will retry when online.");
+      } else if (result.ok) {
         logEvent("daily_report_emailed", { recipient: emailRecipient, success: true });
         showToast(`Daily report emailed to ${emailRecipient}`);
       } else {

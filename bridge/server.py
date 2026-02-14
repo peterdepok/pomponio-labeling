@@ -1,14 +1,18 @@
 """Flask API bridge for Pomponio Ranch Labeling System.
 
-Serves the built React app as static files and exposes two hardware endpoints:
-    GET  /api/scale  - cached weight reading from Brecknell 6710U
-    POST /api/print  - send ZPL to Zebra ZP 230D via win32print
-    GET  /api/health - connection status for scale and printer
+Serves the built React app as static files and exposes hardware + service endpoints:
+    GET  /api/scale      - cached weight reading from Brecknell 6710U
+    POST /api/print      - send ZPL to Zebra ZP 230D via win32print
+    POST /api/email      - send CSV report via SMTP (queues on failure)
+    POST /api/export-csv - save CSV to USB drive or local fallback
+    GET  /api/health     - connection status for scale, printer, and email queue
 
 The scale is polled in a background daemon thread at 200ms intervals.
+Queued emails are retried by a separate daemon thread every 5 minutes.
 All reads from the HTTP layer hit an in-memory cache, never the serial port directly.
 """
 
+import ctypes
 import logging
 import os
 import sys
@@ -24,6 +28,8 @@ from flask import Flask, jsonify, request, send_from_directory  # noqa: E402
 from src.config import Config  # noqa: E402
 from src.scale import Scale, ScaleError  # noqa: E402
 from src.printer import Printer, PrinterError  # noqa: E402
+from bridge.email_sender import send_email  # noqa: E402
+from bridge.email_queue import enqueue, get_queue_length, start_retry_thread  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -194,9 +200,87 @@ def api_print():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
+@app.route("/api/email", methods=["POST"])
+def api_email():
+    """Send a CSV report via SMTP. Queues on failure for background retry."""
+    body = request.get_json(silent=True) or {}
+    to = body.get("to", "")
+    subject = body.get("subject", "")
+    csv_content = body.get("csvContent", "")
+    filename = body.get("filename", "report.csv")
+
+    if not to or not subject or not csv_content:
+        return jsonify({"ok": False, "error": "Missing required fields (to, subject, csvContent)"}), 400
+
+    result = send_email(config, to, subject, csv_content, filename)
+
+    if result.get("ok"):
+        return jsonify({"ok": True})
+
+    # Send failed; queue for retry
+    enqueue({
+        "to": to,
+        "subject": subject,
+        "csv_content": csv_content,
+        "filename": filename,
+    })
+    logger.warning("Email to %s queued for retry: %s", to, result.get("error"))
+    return jsonify({"ok": True, "queued": True, "error": result.get("error", "Send failed")})
+
+
+@app.route("/api/export-csv", methods=["POST"])
+def api_export_csv():
+    """Save a CSV file to USB drive or local fallback directory."""
+    body = request.get_json(silent=True) or {}
+    csv_content = body.get("csvContent", "")
+    filename = body.get("filename", "export.csv")
+
+    if not csv_content:
+        return jsonify({"ok": False, "error": "No CSV content provided"}), 400
+
+    # Sanitize filename
+    safe_name = "".join(c for c in filename if c.isalnum() or c in "._-")
+    if not safe_name:
+        safe_name = "export.csv"
+
+    export_path = _find_export_path(safe_name)
+
+    try:
+        os.makedirs(os.path.dirname(export_path), exist_ok=True)
+        with open(export_path, "w", encoding="utf-8") as f:
+            f.write(csv_content)
+        logger.info("CSV exported to %s", export_path)
+        return jsonify({"ok": True, "path": export_path})
+    except OSError as e:
+        logger.error("CSV export failed: %s", e)
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+def _find_export_path(filename: str) -> str:
+    """Locate a USB drive or fall back to a local directory."""
+    if sys.platform == "win32":
+        try:
+            # Check drives D: through G: for removable media
+            DRIVE_REMOVABLE = 2
+            for letter in "DEFG":
+                drive = f"{letter}:\\"
+                drive_type = ctypes.windll.kernel32.GetDriveTypeW(drive)
+                if drive_type == DRIVE_REMOVABLE and os.path.isdir(drive):
+                    return os.path.join(drive, filename)
+        except Exception:
+            pass
+        # No USB found; use local fallback
+        fallback = os.path.join("C:\\", "pomponio-labeling", "exports")
+        return os.path.join(fallback, filename)
+    else:
+        # Dev mode (macOS/Linux): use exports/ under project root
+        fallback = os.path.join(PROJECT_ROOT, "exports")
+        return os.path.join(fallback, filename)
+
+
 @app.route("/api/health", methods=["GET"])
 def api_health():
-    """Return connection status for scale and printer."""
+    """Return connection status for scale, printer, and email queue."""
     scale = _get_scale()
     printer_name = config.printer_name
 
@@ -208,6 +292,10 @@ def api_health():
         "printer": {
             "name": printer_name,
             "available": _check_printer_available(printer_name),
+        },
+        "email": {
+            "queue_length": get_queue_length(),
+            "smtp_configured": bool(config.smtp_password),
         },
     })
 
@@ -231,12 +319,13 @@ def serve_spa(path):
 # ---------------------------------------------------------------------------
 
 def create_app():
-    """Initialize and return the Flask app with the scale poller running."""
+    """Initialize and return the Flask app with background threads running."""
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     )
     start_scale_poller()
+    start_retry_thread(config, interval=300)
     return app
 
 

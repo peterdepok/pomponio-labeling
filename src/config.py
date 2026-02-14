@@ -28,6 +28,13 @@ DEFAULT_CONFIG = {
         "log_level": "INFO",
         "log_file": "pomponio.log",
     },
+    "email": {
+        "smtp_server": "smtp-mail.outlook.com",
+        "smtp_port": "587",
+        "username": "pomponiolabels2026@outlook.com",
+        "password": "",
+        "from_name": "Pomponio Ranch Labeling",
+    },
 }
 
 
@@ -116,3 +123,23 @@ class Config:
     @property
     def log_file(self) -> str:
         return self.get("app", "log_file")
+
+    @property
+    def smtp_server(self) -> str:
+        return self.get("email", "smtp_server")
+
+    @property
+    def smtp_port(self) -> int:
+        return self.get_int("email", "smtp_port", fallback=587)
+
+    @property
+    def smtp_username(self) -> str:
+        return self.get("email", "username")
+
+    @property
+    def smtp_password(self) -> str:
+        return self.get("email", "password")
+
+    @property
+    def smtp_from_name(self) -> str:
+        return self.get("email", "from_name")

@@ -172,7 +172,9 @@ export function ScannerScreen({
       success: result.ok,
     });
 
-    if (result.ok) {
+    if (result.ok && result.queued) {
+      showToast("Email queued, will retry when online.");
+    } else if (result.ok) {
       showToast(`Manifest resent to ${emailRecipient}`);
     } else {
       showToast(`Email failed: ${result.error || "unknown"}`);
