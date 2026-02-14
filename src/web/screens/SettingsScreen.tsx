@@ -357,7 +357,7 @@ export function SettingsScreen({
         <SectionCard color="#00d4ff">
           <SectionHeader title="Email / Reports" color="#00d4ff" />
 
-          <FieldLabel text="Report Email Address" />
+          <FieldLabel text="Report Email Recipients" />
           <div
             onClick={() => setKeyboardField("email")}
             className="w-full h-16 px-4 text-lg rounded-xl bg-[#0d0d1a] flex items-center cursor-pointer"
@@ -411,7 +411,7 @@ export function SettingsScreen({
           )}
 
           <div className="text-xs text-[#606080] mt-3">
-            When email is blank, reports download locally only.
+            Separate multiple addresses with commas. When blank, reports download locally only.
           </div>
         </SectionCard>
 
@@ -743,9 +743,9 @@ export function SettingsScreen({
       {/* Keyboard modals for settings fields */}
       <KeyboardModal
         isOpen={keyboardField === "email"}
-        title="Report Email Address"
+        title="Report Email Recipients"
         initialValue={emailDraft}
-        placeholder="office@pomponioranch.com"
+        placeholder="email1@example.com, email2@example.com"
         showSymbols
         onConfirm={(val) => {
           const trimmed = val.trim().toLowerCase();

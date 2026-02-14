@@ -22,7 +22,7 @@ def send_email(config, to: str, subject: str, csv_content: str, filename: str) -
 
     Args:
         config: Config instance with smtp_* properties.
-        to: Recipient email address.
+        to: Recipient email address(es), comma-separated for multiple.
         subject: Email subject line.
         csv_content: Raw CSV string to attach.
         filename: Attachment filename (e.g. "manifest_Cow1_123456.csv").
@@ -39,10 +39,15 @@ def send_email(config, to: str, subject: str, csv_content: str, filename: str) -
     if not password:
         return {"ok": False, "error": "SMTP password not configured in config.ini"}
 
+    # Normalize comma-separated recipients (strip whitespace, drop blanks)
+    recipients = [addr.strip() for addr in to.split(",") if addr.strip()]
+    if not recipients:
+        return {"ok": False, "error": "No valid recipient addresses"}
+
     # Build the MIME message
     msg = MIMEMultipart()
     msg["From"] = formataddr((from_name, username))
-    msg["To"] = to
+    msg["To"] = ", ".join(recipients)
     msg["Subject"] = subject
 
     # Plain text body
@@ -60,7 +65,7 @@ def send_email(config, to: str, subject: str, csv_content: str, filename: str) -
             server.starttls()
             server.login(username, password)
             server.send_message(msg)
-        logger.info("Email sent to %s: %s", to, subject)
+        logger.info("Email sent to %s: %s", ", ".join(recipients), subject)
         return {"ok": True}
     except smtplib.SMTPAuthenticationError as e:
         logger.error("SMTP auth failed: %s", e)
