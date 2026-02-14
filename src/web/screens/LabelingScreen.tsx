@@ -110,7 +110,7 @@ export function LabelingScreen({
       context.productName
     ) {
       const barcode = generateBarcode(context.sku, context.weightLb);
-      const zpl = generateLabelZpl(barcode, context.productName, context.weightLb, { darkness: printDarkness });
+      const zpl = generateLabelZpl(barcode, context.productName, context.weightLb, { darkness: printDarkness, sku: context.sku });
 
       // Store ZPL for future USB/serial transmission to Zebra ZP 230D
       zplRef.current = zpl;

@@ -122,7 +122,7 @@ export function BoxesScreen({
         label.productName,
         label.count,
         label.weightLb,
-        { darkness: printDarkness },
+        { darkness: printDarkness, sku: label.sku },
       );
       sendToPrinter(zpl).then(result => {
         if (!result.ok) {

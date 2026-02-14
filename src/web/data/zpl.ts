@@ -38,18 +38,39 @@ const WEIGHT_VALUE_Y = 420;
 const WEIGHT_OZ_Y = 475;          // pounds + ounces line below the decimal weight
 
 /**
+ * SKU-keyed overrides for printed product names.
+ * The full name in skus.ts includes sizing info useful for product selection
+ * but inappropriate on certain printed labels:
+ *   00100: strip "1.5in Thick" from Ribeye Steak Bone-In
+ *   00101: strip "1.25in Thick" from New York Steak Boneless
+ *   00103: strip "8oz" from Filet Mignon
+ */
+const PRINT_NAME_OVERRIDES: Record<string, string> = {
+  "00100": "Ribeye Steak Bone-In",
+  "00101": "New York Steak Boneless",
+  "00103": "Filet Mignon",
+};
+
+function printName(productName: string, sku?: string): string {
+  if (sku && PRINT_NAME_OVERRIDES[sku]) return PRINT_NAME_OVERRIDES[sku];
+  return productName;
+}
+
+/**
  * Generate ZPL for the dynamic portion of the Pomponio Ranch 4x4 label.
  *
  * @param barcode   12-digit UPC-A barcode string
  * @param productName   Human-readable product name (e.g. "Ribeye Steak")
  * @param weightLb  Net weight in pounds
+ * @param options.darkness  ZPL print darkness (0-30)
+ * @param options.sku  SKU code; used to apply print-name overrides
  * @returns ZPL command string ready to send to printer
  */
 export function generateLabelZpl(
   barcode: string,
   productName: string,
   weightLb: number,
-  options?: { darkness?: number },
+  options?: { darkness?: number; sku?: string },
 ): string {
   const darkness = options?.darkness ?? 15;
   const weightStr = weightLb.toFixed(2) + " lb";
@@ -57,11 +78,11 @@ export function generateLabelZpl(
   const oz = ((weightLb - wholeLb) * 16).toFixed(1);
   const ozStr = `${wholeLb} lb ${oz} oz`;
 
-  // Truncate product name if it would overflow the label width
-  // At font size 35, roughly 18 chars fit in the right half
-  const displayName = productName.length > 24
-    ? productName.slice(0, 23) + "..."
-    : productName;
+  // Apply print-name override, then truncate if needed
+  const resolvedName = printName(productName, options?.sku);
+  const displayName = resolvedName.length > 24
+    ? resolvedName.slice(0, 23) + "..."
+    : resolvedName;
 
   const zpl = [
     // --- Label start ---
@@ -123,14 +144,15 @@ export function generateBoxLabelZpl(
   productName: string,
   count: number,
   totalWeightLb: number,
-  options?: { darkness?: number },
+  options?: { darkness?: number; sku?: string },
 ): string {
   const boxDarkness = options?.darkness ?? 15;
   const weightStr = totalWeightLb.toFixed(2) + " lb";
   const wholeLb = Math.floor(totalWeightLb);
   const oz = ((totalWeightLb - wholeLb) * 16).toFixed(1);
   const ozStr = `${wholeLb} lb ${oz} oz`;
-  const countLine = `${count}x ${productName}`;
+  const resolvedName = printName(productName, options?.sku);
+  const countLine = `${count}x ${resolvedName}`;
   const displayName = countLine.length > 24
     ? countLine.slice(0, 23) + "..."
     : countLine;
