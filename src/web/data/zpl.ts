@@ -49,6 +49,7 @@ const PRINT_NAME_OVERRIDES: Record<string, string> = {
   "00100": "Ribeye Steak Bone-In",
   "00101": "New York Steak Boneless",
   "00103": "Filet Mignon",
+  "00140": "Beef Shank",
 };
 
 function printName(productName: string, sku?: string): string {

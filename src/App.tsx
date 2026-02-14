@@ -25,7 +25,7 @@ import { sendDailyReport } from "./web/data/reports.ts";
 import type { Product } from "./web/data/skus.ts";
 
 function App() {
-  const [activeTab, setActiveTab] = useState<TabId>("Products");
+  const [activeTab, setActiveTab] = useState<TabId>("Animals");
   const [activeProductCategory, setActiveProductCategory] = useState<string>(() => {
     try {
       return localStorage.getItem("pomponio_activeCategory") || "Steaks";
