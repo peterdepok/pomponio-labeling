@@ -162,18 +162,34 @@ export function generateDailyProductionCsv(
   return lines.join("\n");
 }
 
-// ── Browser download trigger ───────────────────────────────────
+// ── Server-side CSV export ─────────────────────────────────────
 
-/** Triggers a browser file download of the given CSV string. */
-export function downloadCsv(content: string, filename: string): void {
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.style.display = "none";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+export interface ExportCsvResult {
+  ok: boolean;
+  path?: string;
+  error?: string;
+}
+
+/**
+ * Export CSV to disk via the Flask bridge.
+ * Writes to USB drive if present, otherwise falls back to
+ * C:\pomponio-labeling\exports\ (Windows) or PROJECT_ROOT/exports/ (dev).
+ * No browser dialog is triggered.
+ */
+export async function exportCsv(
+  content: string,
+  filename: string,
+): Promise<ExportCsvResult> {
+  try {
+    const res = await fetch("/api/export-csv", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ csvContent: content, filename }),
+    });
+    const data = await res.json();
+    return { ok: data.ok, path: data.path, error: data.error };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    return { ok: false, error: msg };
+  }
 }

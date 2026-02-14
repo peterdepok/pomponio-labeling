@@ -22,9 +22,9 @@ export type AuditEventType =
   | "workflow_cancelled"
   | "box_labels_printed"
   | "box_labels_reprinted"
-  | "manifest_downloaded"
+  | "manifest_exported"
   | "manifest_emailed"
-  | "daily_report_downloaded"
+  | "daily_report_exported"
   | "daily_report_emailed"
   | "data_cleared"
   | "package_voided"
@@ -48,9 +48,9 @@ export interface AuditPayloads {
   workflow_cancelled: { fromState: string; sku: string | null; productName: string | null };
   box_labels_printed: { boxId: number; boxNumber: number; labelCount: number };
   box_labels_reprinted: { boxId: number; boxNumber: number; labelCount: number };
-  manifest_downloaded: { animalId: number; animalName: string; filename: string };
+  manifest_exported: { animalId: number; animalName: string; filename: string; path?: string };
   manifest_emailed: { animalId: number; animalName: string; recipient: string; success: boolean };
-  daily_report_downloaded: { filename: string };
+  daily_report_exported: { filename: string; path?: string };
   daily_report_emailed: { recipient: string; success: boolean };
   data_cleared: { animalCount: number; boxCount: number; packageCount: number };
   package_voided: { packageId: number; barcode: string; sku: string; productName: string; reason: string };

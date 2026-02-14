@@ -5,7 +5,7 @@
 
 import type { Animal, Box, Package } from "../hooks/useAppState.ts";
 import type { LogEventFn } from "../hooks/useAuditLog.ts";
-import { generateDailyProductionCsv, downloadCsv } from "./csv.ts";
+import { generateDailyProductionCsv, exportCsv } from "./csv.ts";
 import { sendReport } from "./email.ts";
 
 interface SendDailyReportParams {
@@ -37,8 +37,8 @@ export async function sendDailyReport({
   const today = new Date().toLocaleDateString().replace(/\//g, "-");
   const filename = `daily_production_${today}.csv`;
 
-  downloadCsv(csv, filename);
-  logEvent("daily_report_downloaded", { filename });
+  const exportResult = await exportCsv(csv, filename);
+  logEvent("daily_report_exported", { filename, path: exportResult.path });
 
   if (emailRecipient) {
     showToast("Sending daily report...");

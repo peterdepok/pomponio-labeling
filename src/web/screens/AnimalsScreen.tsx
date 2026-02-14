@@ -12,7 +12,7 @@ import { KeyboardModal } from "../components/KeyboardModal.tsx";
 import { ScanGunIcon } from "../components/ScanGunIcon.tsx";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner.ts";
 import type { Animal, Box, Package } from "../hooks/useAppState.ts";
-import { generateAnimalManifestCsv, generateDailyProductionCsv, downloadCsv } from "../data/csv.ts";
+import { generateAnimalManifestCsv, generateDailyProductionCsv, exportCsv } from "../data/csv.ts";
 import { sendReport } from "../data/email.ts";
 import type { LogEventFn } from "../hooks/useAuditLog.ts";
 
@@ -122,14 +122,16 @@ export function AnimalsScreen({
     const safeName = animal.name.replace(/[^a-zA-Z0-9]/g, "_");
     const filename = `manifest_${safeName}_${Date.now()}.csv`;
 
-    // Always download locally first
-    downloadCsv(csv, filename);
-    logEvent("manifest_downloaded", { animalId, animalName: animal.name, filename });
+    // Export CSV to disk via Flask bridge (USB or local fallback)
+    const exportResult = await exportCsv(csv, filename);
+    logEvent("manifest_exported", { animalId, animalName: animal.name, filename, path: exportResult.path });
 
     // Close the animal in state
     onCloseAnimal(animalId);
     setConfirmCloseId(null);
-    showToast("Animal closed. Manifest downloaded.");
+    showToast(exportResult.ok
+      ? `Animal closed. CSV saved to ${exportResult.path}`
+      : "Animal closed. CSV export failed.");
 
     // Attempt email if configured and enabled
     if (emailRecipient && autoEmailOnAnimalClose) {
@@ -166,10 +168,12 @@ export function AnimalsScreen({
     const today = new Date().toLocaleDateString().replace(/\//g, "-");
     const filename = `daily_production_${today}.csv`;
 
-    // Always download locally
-    downloadCsv(csv, filename);
-    logEvent("daily_report_downloaded", { filename });
-    showToast("Daily report downloaded.");
+    // Export CSV to disk via Flask bridge
+    const exportResult = await exportCsv(csv, filename);
+    logEvent("daily_report_exported", { filename, path: exportResult.path });
+    showToast(exportResult.ok
+      ? `Daily report saved to ${exportResult.path}`
+      : "Daily report export failed.");
 
     // Attempt email if configured and enabled
     if (emailRecipient && autoEmailDailyReport) {
