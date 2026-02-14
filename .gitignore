@@ -32,3 +32,9 @@ __pycache__/
 *.db
 .pytest_cache/
 .env*.local
+
+# Machine-specific config (use config.ini.example as template)
+config.ini
+
+# Runtime data (audit logs, databases)
+data/

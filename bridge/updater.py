@@ -114,11 +114,24 @@ def apply_update() -> dict:
         )
         branch = branch_result.stdout.strip() if branch_result.returncode == 0 else "main"
 
+        # Stash any local changes (e.g. config.ini) so pull never conflicts
+        stash = _run(["git", "stash", "--include-untracked"], timeout=10)
+        did_stash = stash.returncode == 0 and "No local changes" not in stash.stdout
+
         # Pull latest
         pull = _run(["git", "pull", "origin", branch], timeout=60)
         if pull.returncode != 0:
             logger.error("git pull failed: %s", pull.stderr)
+            # Restore stash even on failure
+            if did_stash:
+                _run(["git", "stash", "pop"], timeout=10)
             return {"ok": False, "error": f"git pull failed: {pull.stderr.strip()}"}
+
+        # Restore stashed local changes
+        if did_stash:
+            pop = _run(["git", "stash", "pop"], timeout=10)
+            if pop.returncode != 0:
+                logger.warning("git stash pop had conflicts: %s", pop.stderr)
 
         logger.info("git pull succeeded: %s", pull.stdout.strip())
 
