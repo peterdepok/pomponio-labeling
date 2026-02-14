@@ -225,9 +225,13 @@ export function SettingsScreen({
   auditEntries,
   onClearAuditLog,
 }: SettingsScreenProps) {
-  const [confirmAction, setConfirmAction] = useState<"reset" | "clear" | "clear-audit" | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"reset" | "clear" | "clear-audit" | "update" | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [keyboardField, setKeyboardField] = useState<"email" | "printer" | "comPort" | "maxWeight" | null>(null);
+
+  // Update flow state
+  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "applying" | "restarting">("idle");
+  const [updateInfo, setUpdateInfo] = useState<{ commitsBehind: number; summary: string } | null>(null);
 
   // Debounced email input
   const [emailDraft, setEmailDraft] = useState(settings.emailRecipient);
@@ -278,6 +282,52 @@ export function SettingsScreen({
       () => showToast("Device ID copied."),
       () => showToast("Copy failed."),
     );
+  };
+
+  const handleCheckForUpdates = async () => {
+    setUpdateStatus("checking");
+    try {
+      const res = await fetch("/api/update/check");
+      const data = await res.json();
+      if (data.error) {
+        showToast(`Update check failed: ${data.error}`);
+        setUpdateStatus("idle");
+        return;
+      }
+      if (data.updateAvailable) {
+        setUpdateInfo({
+          commitsBehind: data.commitsBehind || 0,
+          summary: data.summary || "",
+        });
+        setUpdateStatus("available");
+      } else {
+        showToast("App is up to date.");
+        setUpdateStatus("idle");
+      }
+    } catch {
+      showToast("Update check failed: network error.");
+      setUpdateStatus("idle");
+    }
+  };
+
+  const handleApplyUpdate = async () => {
+    setConfirmAction(null);
+    setUpdateStatus("applying");
+    try {
+      const res = await fetch("/api/update/apply", { method: "POST" });
+      const data = await res.json();
+      if (data.ok) {
+        setUpdateStatus("restarting");
+      } else {
+        showToast(`Update failed: ${data.error || "unknown"}`);
+        setUpdateStatus("idle");
+        setUpdateInfo(null);
+      }
+    } catch {
+      showToast("Update failed: network error.");
+      setUpdateStatus("idle");
+      setUpdateInfo(null);
+    }
   };
 
   return (
@@ -473,13 +523,29 @@ export function SettingsScreen({
           <ReadOnlyRow label="App Version" value={`v${__APP_VERSION__}`} />
 
           <div className="flex gap-3 mt-3">
-            <TouchButton
-              text="Check for Updates"
-              style="secondary"
-              size="sm"
-              onClick={() => showToast("App is up to date.")}
-              width="200px"
-            />
+            {updateStatus === "available" ? (
+              <TouchButton
+                text={`Update Available (${updateInfo?.commitsBehind ?? 0} commits)`}
+                style="primary"
+                size="sm"
+                onClick={() => setConfirmAction("update")}
+                width="320px"
+              />
+            ) : (
+              <TouchButton
+                text={
+                  updateStatus === "checking" ? "Checking..."
+                    : updateStatus === "applying" ? "Updating..."
+                    : updateStatus === "restarting" ? "Restarting..."
+                    : "Check for Updates"
+                }
+                style="secondary"
+                size="sm"
+                onClick={updateStatus === "idle" ? handleCheckForUpdates : undefined}
+                disabled={updateStatus !== "idle"}
+                width="200px"
+              />
+            )}
           </div>
 
           <div
@@ -633,6 +699,15 @@ export function SettingsScreen({
           onCancel={() => setConfirmAction(null)}
         />
       )}
+      {confirmAction === "update" && (
+        <ConfirmDialog
+          title="Update Available"
+          message={`${updateInfo?.commitsBehind ?? 0} new commit${(updateInfo?.commitsBehind ?? 0) !== 1 ? "s" : ""} available. The app will update and restart.\n\n${updateInfo?.summary ?? ""}`}
+          confirmText="Update and Restart"
+          onConfirm={handleApplyUpdate}
+          onCancel={() => setConfirmAction(null)}
+        />
+      )}
 
       {/* Keyboard modals for settings fields */}
       <KeyboardModal
@@ -689,6 +764,28 @@ export function SettingsScreen({
         }}
         onCancel={() => setKeyboardField(null)}
       />
+
+      {/* Full-screen overlay during update/restart */}
+      {(updateStatus === "applying" || updateStatus === "restarting") && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+          style={{ background: "rgba(13, 13, 26, 0.95)" }}
+        >
+          <div
+            className="w-12 h-12 rounded-full mb-6 animate-spin"
+            style={{
+              border: "3px solid #2a2a4a",
+              borderTopColor: updateStatus === "restarting" ? "#51cf66" : "#00d4ff",
+            }}
+          />
+          <div className="text-xl font-bold text-[#e8e8e8] mb-2">
+            {updateStatus === "restarting" ? "Restarting..." : "Updating..."}
+          </div>
+          <div className="text-sm text-[#606080]">
+            Do not power off the device.
+          </div>
+        </div>
+      )}
     </div>
   );
 }

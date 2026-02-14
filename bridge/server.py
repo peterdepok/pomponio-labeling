@@ -1,11 +1,14 @@
 """Flask API bridge for Pomponio Ranch Labeling System.
 
 Serves the built React app as static files and exposes hardware + service endpoints:
-    GET  /api/scale      - cached weight reading from Brecknell 6710U
-    POST /api/print      - send ZPL to Zebra ZP 230D via win32print
-    POST /api/email      - send CSV report via SMTP (queues on failure)
-    POST /api/export-csv - save CSV to USB drive or local fallback
-    GET  /api/health     - connection status for scale, printer, and email queue
+    GET  /api/scale        - cached weight reading from Brecknell 6710U
+    POST /api/print        - send ZPL to Zebra ZP 230D via win32print
+    POST /api/email        - send CSV report via SMTP (queues on failure)
+    POST /api/audit        - persist audit event to server-side log
+    POST /api/export-csv   - save CSV to USB drive or local fallback
+    GET  /api/health       - connection status for scale, printer, and email queue
+    GET  /api/update/check - check GitHub for new commits
+    POST /api/update/apply - git pull + npm build + restart
 
 The scale is polled in a background daemon thread at 200ms intervals.
 Queued emails are retried by a separate daemon thread every 5 minutes.
@@ -31,6 +34,7 @@ from src.printer import Printer, PrinterError  # noqa: E402
 from bridge.email_sender import send_email  # noqa: E402
 from bridge.email_queue import enqueue, get_queue_length, start_retry_thread  # noqa: E402
 from bridge.audit_store import append_event, start_audit_scheduler  # noqa: E402
+from bridge.updater import check_for_update, apply_update, schedule_restart  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -313,6 +317,25 @@ def api_health():
             "smtp_configured": bool(config.smtp_password),
         },
     })
+
+
+@app.route("/api/update/check", methods=["GET"])
+def api_update_check():
+    """Check GitHub for available updates via git fetch."""
+    result = check_for_update()
+    return jsonify(result)
+
+
+@app.route("/api/update/apply", methods=["POST"])
+def api_update_apply():
+    """Pull latest code, rebuild, and schedule a process restart."""
+    result = apply_update()
+
+    if result.get("ok"):
+        schedule_restart(delay=2.0)
+        return jsonify(result)
+
+    return jsonify(result), 500
 
 
 # SPA catch-all: serve index.html for any path not matched above
