@@ -118,6 +118,8 @@ def main():
         browser_proc = subprocess.Popen([
             browser,
             "--kiosk",
+            "--start-fullscreen",
+            "--new-window",
             "--disable-restore-session-state",
             "--disable-infobars",
             "--no-first-run",
