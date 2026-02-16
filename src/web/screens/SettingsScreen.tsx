@@ -381,34 +381,36 @@ export function SettingsScreen({
             />
           </div>
 
-          {emailDraft && (
-            <div className="mt-4">
-              <TouchButton
-                text={emailTesting ? "Sending..." : "Send Test Email"}
-                size="sm"
-                style="secondary"
-                disabled={emailTesting}
-                onClick={() => {
-                  setEmailTesting(true);
-                  fetch("/api/email/test", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ to: emailDraft }),
+          <div className="mt-4">
+            <TouchButton
+              text={emailTesting ? "Sending..." : "Send Test Email"}
+              size="sm"
+              style="secondary"
+              disabled={emailTesting}
+              onClick={() => {
+                if (!emailDraft) {
+                  showToast("Enter an email address first.");
+                  return;
+                }
+                setEmailTesting(true);
+                fetch("/api/email/test", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ to: emailDraft }),
+                })
+                  .then(res => res.json())
+                  .then(data => {
+                    if (data.ok) {
+                      showToast("Test email sent successfully.");
+                    } else {
+                      showToast(`Email failed: ${data.error || "unknown"}`);
+                    }
                   })
-                    .then(res => res.json())
-                    .then(data => {
-                      if (data.ok) {
-                        showToast("Test email sent successfully.");
-                      } else {
-                        showToast(`Email failed: ${data.error || "unknown"}`);
-                      }
-                    })
-                    .catch(() => showToast("Email test failed: network error."))
-                    .finally(() => setEmailTesting(false));
-                }}
-              />
-            </div>
-          )}
+                  .catch(() => showToast("Email test failed: network error."))
+                  .finally(() => setEmailTesting(false));
+              }}
+            />
+          </div>
 
           <div className="text-xs text-[#606080] mt-3">
             Separate multiple addresses with commas. When blank, reports download locally only.
