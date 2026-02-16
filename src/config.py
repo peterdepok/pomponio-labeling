@@ -29,11 +29,8 @@ DEFAULT_CONFIG = {
         "log_file": "pomponio.log",
     },
     "email": {
-        "smtp_server": "smtp-mail.outlook.com",
-        "smtp_port": "587",
-        "username": "pomponiolabels2026@outlook.com",
-        "password": "",
-        "from_name": "Pomponio Ranch Labeling",
+        "resend_api_key": "",
+        "from": "Pomponio Ranch <onboarding@resend.dev>",
     },
 }
 
@@ -125,21 +122,9 @@ class Config:
         return self.get("app", "log_file")
 
     @property
-    def smtp_server(self) -> str:
-        return self.get("email", "smtp_server")
+    def resend_api_key(self) -> str:
+        return self.get("email", "resend_api_key")
 
     @property
-    def smtp_port(self) -> int:
-        return self.get_int("email", "smtp_port", fallback=587)
-
-    @property
-    def smtp_username(self) -> str:
-        return self.get("email", "username")
-
-    @property
-    def smtp_password(self) -> str:
-        return self.get("email", "password")
-
-    @property
-    def smtp_from_name(self) -> str:
-        return self.get("email", "from_name")
+    def resend_from(self) -> str:
+        return self.get("email", "from", fallback="Pomponio Ranch <onboarding@resend.dev>")

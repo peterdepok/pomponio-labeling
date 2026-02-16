@@ -1,6 +1,6 @@
 """Persistent email queue with background retry thread.
 
-When SMTP send fails (no internet, server down), the email is saved to a JSON
+When email send fails (no internet, API down), the email is saved to a JSON
 file on disk. A daemon thread retries queued emails every `interval` seconds.
 Thread-safe via threading.Lock.
 """
@@ -112,7 +112,7 @@ def start_retry_thread(config, interval: float = 300) -> threading.Thread:
     """Launch the email retry daemon thread.
 
     Args:
-        config: Config instance with smtp_* properties.
+        config: Config instance with resend_api_key property.
         interval: Seconds between retry attempts (default 300 = 5 minutes).
 
     Returns:

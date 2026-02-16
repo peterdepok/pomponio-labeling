@@ -15,8 +15,5 @@ log_level = INFO
 log_file = pomponio.log
 
 [email]
-smtp_server = smtp-mail.outlook.com
-smtp_port = 587
-username = pomponiolabels2026@outlook.com
-password =
-from_name = Pomponio Ranch Labeling
+resend_api_key =
+from = Pomponio Ranch <onboarding@resend.dev>

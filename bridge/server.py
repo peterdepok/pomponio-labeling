@@ -332,7 +332,7 @@ def api_health():
         },
         "email": {
             "queue_length": get_queue_length(),
-            "smtp_configured": bool(config.smtp_password),
+            "configured": bool(config.resend_api_key),
         },
     })
 
