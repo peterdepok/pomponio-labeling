@@ -1,7 +1,7 @@
 """Pomponio Ranch Labeling System - Production Entry Point.
 
 Starts the Flask bridge serving the React UI at localhost:8000
-and opens Edge (or Chrome) in kiosk mode on the Beelink Mini PC.
+and opens Chrome (or Edge) in kiosk mode on the Beelink Mini PC.
 
 Usage:
     python run_production.py
@@ -21,28 +21,32 @@ sys.path.insert(0, PROJECT_ROOT)
 PORT = 8000
 URL = f"http://localhost:{PORT}"
 
+# Isolated Chrome profile so kiosk runs as its own process (not delegated
+# to an existing Chrome/Edge instance). Stored inside the project directory.
+KIOSK_PROFILE_DIR = os.path.join(PROJECT_ROOT, ".kiosk-profile")
+
 # ---------------------------------------------------------------------------
-# Browser detection (Edge preferred, Chrome fallback)
+# Browser detection (Chrome preferred, Edge fallback)
 # ---------------------------------------------------------------------------
 
 BROWSER_CANDIDATES = [
-    # Microsoft Edge (pre-installed on Windows 11)
-    os.path.join(os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)"),
-                 "Microsoft", "Edge", "Application", "msedge.exe"),
-    os.path.join(os.environ.get("PROGRAMFILES", "C:\\Program Files"),
-                 "Microsoft", "Edge", "Application", "msedge.exe"),
-    # Google Chrome (fallback)
+    # Google Chrome (preferred for kiosk stability)
     os.path.join(os.environ.get("PROGRAMFILES", "C:\\Program Files"),
                  "Google", "Chrome", "Application", "chrome.exe"),
     os.path.join(os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)"),
                  "Google", "Chrome", "Application", "chrome.exe"),
     os.path.join(os.environ.get("LOCALAPPDATA", ""),
                  "Google", "Chrome", "Application", "chrome.exe"),
+    # Microsoft Edge (fallback)
+    os.path.join(os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)"),
+                 "Microsoft", "Edge", "Application", "msedge.exe"),
+    os.path.join(os.environ.get("PROGRAMFILES", "C:\\Program Files"),
+                 "Microsoft", "Edge", "Application", "msedge.exe"),
 ]
 
 
 def find_browser() -> str | None:
-    """Return the path to Edge or Chrome, or None if neither found."""
+    """Return the path to Chrome or Edge, or None if neither found."""
     for path in BROWSER_CANDIDATES:
         if path and os.path.isfile(path):
             return path
@@ -117,13 +121,14 @@ def main():
         print(f"Launching kiosk browser: {browser}")
         browser_proc = subprocess.Popen([
             browser,
+            f"--user-data-dir={KIOSK_PROFILE_DIR}",
             "--kiosk",
-            "--start-fullscreen",
-            "--new-window",
             "--disable-restore-session-state",
             "--disable-infobars",
             "--no-first-run",
             "--disable-translate",
+            "--disable-features=TranslateUI",
+            "--autoplay-policy=no-user-gesture-required",
             URL,
         ])
 

@@ -38,3 +38,6 @@ config.ini
 
 # Runtime data (audit logs, databases)
 data/
+
+# Kiosk browser profile (auto-created at launch)
+.kiosk-profile/
