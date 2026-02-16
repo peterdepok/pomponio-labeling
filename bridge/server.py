@@ -16,6 +16,7 @@ All reads from the HTTP layer hit an in-memory cache, never the serial port dire
 """
 
 import ctypes
+import json
 import logging
 import os
 import sys
@@ -376,6 +377,43 @@ def _find_export_path(filename: str) -> str:
         # Dev mode (macOS/Linux): use exports/ under project root
         fallback = os.path.join(PROJECT_ROOT, "exports")
         return os.path.join(fallback, filename)
+
+
+BACKUP_PATH = os.path.join(PROJECT_ROOT, "exports", "state_backup.json")
+
+
+@app.route("/api/backup", methods=["POST"])
+def api_backup():
+    """Write a full state snapshot to disk for disaster recovery.
+
+    Overwrites the previous backup each time. This is called every 60
+    seconds by the frontend useAutoBackup hook.
+    """
+    body = request.get_json(silent=True) or {}
+
+    try:
+        os.makedirs(os.path.dirname(BACKUP_PATH), exist_ok=True)
+        with open(BACKUP_PATH, "w", encoding="utf-8") as f:
+            json.dump(body, f)
+        return jsonify({"ok": True})
+    except OSError as e:
+        logger.error("Backup write failed: %s", e)
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/backup/restore", methods=["GET"])
+def api_backup_restore():
+    """Return the latest state backup from disk, if one exists."""
+    if not os.path.isfile(BACKUP_PATH):
+        return jsonify({"ok": True, "data": None})
+
+    try:
+        with open(BACKUP_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return jsonify({"ok": True, "data": data})
+    except (OSError, json.JSONDecodeError) as e:
+        logger.error("Backup restore failed: %s", e)
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 @app.route("/api/health", methods=["GET"])

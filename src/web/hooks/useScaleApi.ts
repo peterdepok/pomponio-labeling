@@ -87,9 +87,12 @@ export function useScaleApi(config?: ScaleApiConfig) {
   // updateWeight is a no-op for the real scale (hardware provides weight)
   const updateWeight = useCallback((_newWeight: number) => {}, []);
 
-  const lockWeight = useCallback(() => {
-    if (weight > 0 && stable) {
-      setLocked(true);
+  const lockWeight = useCallback((options?: { force?: boolean }) => {
+    if (options?.force) {
+      // Force lock: skip stability check, only require positive weight
+      if (weight > 0) setLocked(true);
+    } else {
+      if (weight > 0 && stable) setLocked(true);
     }
   }, [weight, stable]);
 

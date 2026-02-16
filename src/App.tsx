@@ -28,6 +28,7 @@ import { sendDailyReport } from "./web/data/reports.ts";
 import { useBarcodeScanner } from "./web/hooks/useBarcodeScanner.ts";
 import { useInactivityEmail } from "./web/hooks/useInactivityEmail.ts";
 import { parseBarcode } from "./web/data/barcode.ts";
+import { useAutoBackup } from "./web/hooks/useAutoBackup.ts";
 import type { Product } from "./web/data/skus.ts";
 import type { Package } from "./web/hooks/useAppState.ts";
 
@@ -85,11 +86,30 @@ function App() {
     onInactivityTimeout: handleInactivityTimeout,
   });
 
+  // Periodic backup: writes state snapshot to disk every 60s via Flask
+  useAutoBackup({
+    animals: app.animals,
+    boxes: app.boxes,
+    packages: app.packages,
+    currentAnimalId: app.currentAnimalId,
+    currentBoxId: app.currentBoxId,
+  });
+
   // Operator gate: require name before allowing app interaction
   const handleOperatorConfirm = useCallback((name: string) => {
     setSetting("operatorName", name);
     audit.logEvent("operator_shift_started", { operatorName: name });
   }, [setSetting, audit]);
+
+  // Change operator mid-shift: logs the switch and clears operator name,
+  // which automatically reopens OperatorGateModal (gated on !operatorName).
+  const handleChangeOperator = useCallback(() => {
+    const oldName = settings.operatorName;
+    if (oldName) {
+      audit.logEvent("operator_changed", { oldName, newName: "" });
+    }
+    setSetting("operatorName", "");
+  }, [settings.operatorName, audit, setSetting]);
 
   // Global barcode scanner: active on all tabs except Scanner (which has its own).
   // When a scan is detected, shows a popup with package details and void option.
@@ -411,6 +431,7 @@ function App() {
         boxNumber={currentBox?.boxNumber ?? null}
         packageCount={packageCount}
         operatorName={settings.operatorName || null}
+        onChangeOperator={handleChangeOperator}
       />
 
       {/* Speed encouragement popup */}

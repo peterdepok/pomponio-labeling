@@ -8,6 +8,7 @@ interface InfoBarProps {
   boxNumber: number | null;
   packageCount: number;
   operatorName: string | null;
+  onChangeOperator?: () => void;
 }
 
 interface HudCellProps {
@@ -15,16 +16,19 @@ interface HudCellProps {
   value: string;
   color: string;
   active: boolean;
+  onClick?: () => void;
 }
 
-function HudCell({ label, value, color, active }: HudCellProps) {
+function HudCell({ label, value, color, active, onClick }: HudCellProps) {
   return (
     <div
       className="flex-1 flex items-center justify-center gap-2.5 h-[32px] mx-1 rounded-lg"
       style={{
         background: "#080e1a",
         boxShadow: "inset 0 2px 4px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.04)",
+        cursor: onClick ? "pointer" : "default",
       }}
+      onClick={onClick}
     >
       {/* Status pip */}
       <div
@@ -53,7 +57,7 @@ function HudCell({ label, value, color, active }: HudCellProps) {
   );
 }
 
-export function InfoBar({ animalName, boxNumber, packageCount, operatorName }: InfoBarProps) {
+export function InfoBar({ animalName, boxNumber, packageCount, operatorName, onChangeOperator }: InfoBarProps) {
   return (
     <div
       className="h-11 flex items-center px-2 flex-shrink-0"
@@ -85,6 +89,7 @@ export function InfoBar({ animalName, boxNumber, packageCount, operatorName }: I
         value={operatorName ?? "None"}
         color="#b197fc"
         active={operatorName !== null}
+        onClick={onChangeOperator}
       />
     </div>
   );

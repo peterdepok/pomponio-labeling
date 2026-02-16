@@ -34,7 +34,12 @@ export type AuditEventType =
   | "operator_shift_started"
   | "operator_changed"
   | "inactivity_auto_report"
-  | "app_exit_initiated";
+  | "app_exit_initiated"
+  | "print_failed"
+  | "print_retry"
+  | "print_cancel_after_failure"
+  | "weight_override_forced"
+  | "weight_manual_entry";
 
 // --- Payload map (discriminated by eventType) ---
 
@@ -65,6 +70,11 @@ export interface AuditPayloads {
   operator_changed: { oldName: string; newName: string };
   inactivity_auto_report: { timeoutHours: number };
   app_exit_initiated: Record<string, never>;
+  print_failed: { error: string | undefined; sku: string | null | undefined; barcode: string };
+  print_retry: { sku: string; barcode: string };
+  print_cancel_after_failure: { sku: string | null; error: string | null };
+  weight_override_forced: { weightLb: number; sku: string; productName: string };
+  weight_manual_entry: { weightLb: number; sku: string; productName: string };
 }
 
 // --- Entry stored in localStorage ---

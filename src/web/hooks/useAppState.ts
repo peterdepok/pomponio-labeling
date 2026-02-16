@@ -93,6 +93,56 @@ export function useAppState() {
   const [currentBoxId, setCurrentBoxId] = useState<number | null>(hydrated.currentBoxId);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
+  // One-time restore from disk backup: if localStorage was empty on mount
+  // (no animals), attempt to recover from the Flask backup endpoint.
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+
+    // Only attempt restore if localStorage was empty
+    if (hydrated.animals.length > 0) return;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/backup/restore");
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!json.ok || !json.data) return;
+
+        const data = json.data;
+        const restoredAnimals: Animal[] = data.animals ?? [];
+        const restoredBoxes: Box[] = data.boxes ?? [];
+        const restoredPackages: Package[] = data.packages ?? [];
+
+        if (restoredAnimals.length === 0) return;
+
+        // Restore ID counters past any existing IDs
+        nextAnimalId = restoredAnimals.length > 0 ? Math.max(...restoredAnimals.map((a: Animal) => a.id)) + 1 : 1;
+        nextBoxId = restoredBoxes.length > 0 ? Math.max(...restoredBoxes.map((b: Box) => b.id)) + 1 : 1;
+        nextPackageId = restoredPackages.length > 0 ? Math.max(...restoredPackages.map((p: Package) => p.id)) + 1 : 1;
+
+        setAnimals(restoredAnimals);
+        setBoxes(restoredBoxes);
+        setPackages(restoredPackages);
+        setCurrentAnimalId(data.currentAnimalId ?? null);
+        setCurrentBoxId(data.currentBoxId ?? null);
+
+        // Show restoration toast (setToast is already defined in scope)
+        setToast({ msg: `Restored from backup: ${restoredAnimals.length} animals, ${restoredPackages.length} packages`, type: "success" });
+        setTimeout(() => setToast(null), 5000);
+
+        console.log("[Backup] Restored from disk backup:", {
+          animals: restoredAnimals.length,
+          boxes: restoredBoxes.length,
+          packages: restoredPackages.length,
+        });
+      } catch {
+        // Restore is best-effort; if Flask is not running, silently skip
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // --- Persist state to localStorage on every change ---
   // Wrapped in try/catch to survive quota exceeded errors on kiosk browsers.
 

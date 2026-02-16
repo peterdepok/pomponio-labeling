@@ -42,9 +42,12 @@ export function useSimulatedScale(config?: ScaleConfig) {
     }
   }, [locked, stabilityDelay]);
 
-  const lockWeight = useCallback(() => {
-    if (weight > 0 && stable) {
-      setLocked(true);
+  const lockWeight = useCallback((options?: { force?: boolean }) => {
+    if (options?.force) {
+      // Force lock: skip stability check, only require positive weight
+      if (weight > 0) setLocked(true);
+    } else {
+      if (weight > 0 && stable) setLocked(true);
     }
   }, [weight, stable]);
 
