@@ -5,12 +5,13 @@
 
 import { useState, useEffect } from "react";
 import type { SettingsValues, ScaleMode, BaudRate } from "../hooks/useSettings.ts";
-import type { AuditEntry } from "../hooks/useAuditLog.ts";
+import type { AuditEntry, LogEventFn } from "../hooks/useAuditLog.ts";
 import { TouchButton } from "../components/TouchButton.tsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.tsx";
 import { KeyboardModal } from "../components/KeyboardModal.tsx";
 import { sendToPrinter } from "../data/printer.ts";
 import { useStorageMonitor } from "../hooks/useStorageMonitor.ts";
+import { touchRecentOperator } from "../components/OperatorGateModal.tsx";
 
 // --- Props ---
 
@@ -25,6 +26,7 @@ interface SettingsScreenProps {
   showToast: (msg: string, type?: "success" | "error") => void;
   auditEntries: AuditEntry[];
   onClearAuditLog: () => void;
+  logEvent: LogEventFn;
 }
 
 // --- Sub-components ---
@@ -225,10 +227,11 @@ export function SettingsScreen({
   showToast,
   auditEntries,
   onClearAuditLog,
+  logEvent,
 }: SettingsScreenProps) {
   const [confirmAction, setConfirmAction] = useState<"reset" | "clear" | "clear-audit" | "update" | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [keyboardField, setKeyboardField] = useState<"email" | "printer" | "comPort" | "maxWeight" | null>(null);
+  const [keyboardField, setKeyboardField] = useState<"email" | "printer" | "comPort" | "maxWeight" | "operator" | null>(null);
 
   // Update flow state
   const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "applying" | "restarting">("idle");
@@ -733,6 +736,20 @@ export function SettingsScreen({
         <SectionCard color="#a0a0b0">
           <SectionHeader title="About / Device" color="#a0a0b0" />
 
+          {/* Current operator */}
+          <div className="py-2">
+            <FieldLabel text="Current Operator" />
+            <div
+              onClick={() => setKeyboardField("operator")}
+              className="w-full h-12 px-4 text-lg rounded-xl bg-[#0d0d1a] flex items-center cursor-pointer"
+              style={INPUT_STYLE}
+            >
+              <span style={{ color: settings.operatorName ? "#e8e8e8" : "#404060" }}>
+                {settings.operatorName || "Tap to change..."}
+              </span>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between py-2" style={{ minHeight: 40 }}>
             <span className="text-sm text-[#606080]">Device ID</span>
             <div className="flex items-center gap-2">
@@ -864,6 +881,26 @@ export function SettingsScreen({
           if (v > 0 && v <= 500) {
             onSetSetting("scaleMaxWeightLb", v);
           }
+          setKeyboardField(null);
+        }}
+        onCancel={() => setKeyboardField(null)}
+      />
+
+      <KeyboardModal
+        isOpen={keyboardField === "operator"}
+        title="Change Operator"
+        initialValue={settings.operatorName}
+        placeholder="Enter operator name..."
+        onConfirm={(val) => {
+          const trimmed = val.trim();
+          if (trimmed && trimmed !== settings.operatorName) {
+            logEvent("operator_changed", {
+              oldName: settings.operatorName,
+              newName: trimmed,
+            });
+          }
+          if (trimmed) touchRecentOperator(trimmed);
+          onSetSetting("operatorName", trimmed);
           setKeyboardField(null);
         }}
         onCancel={() => setKeyboardField(null)}

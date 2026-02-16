@@ -23,6 +23,7 @@ interface ScannerScreenProps {
   packages: Package[];
   boxes: Box[];
   animals: Animal[];
+  operatorName: string;
   onVoidPackage: (packageId: number, reason: string) => void;
   getAllPackagesForBox: (boxId: number) => Package[];
   emailRecipient: string;
@@ -41,6 +42,7 @@ export function ScannerScreen({
   packages,
   boxes,
   animals,
+  operatorName,
   onVoidPackage,
   getAllPackagesForBox,
   emailRecipient,
@@ -152,7 +154,7 @@ export function ScannerScreen({
     const animal = scanMode.animal;
     setSending(true);
 
-    const csv = generateAnimalManifestCsv(animal, boxes, packages);
+    const csv = generateAnimalManifestCsv(animal, boxes, packages, operatorName);
     const safeName = animal.name.replace(/[^a-zA-Z0-9]/g, "_");
     const filename = `manifest_${safeName}_${Date.now()}.csv`;
 

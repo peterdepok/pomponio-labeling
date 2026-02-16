@@ -23,6 +23,7 @@ import { SPEED_ENCOURAGEMENTS, CELEBRATION_ICONS } from "./web/data/celebrations
 import { ConfirmDialog } from "./web/components/ConfirmDialog.tsx";
 import { ScanPopup } from "./web/components/ScanPopup.tsx";
 import { OfflineBanner } from "./web/components/OfflineBanner.tsx";
+import { OperatorGateModal } from "./web/components/OperatorGateModal.tsx";
 import { sendDailyReport } from "./web/data/reports.ts";
 import { useBarcodeScanner } from "./web/hooks/useBarcodeScanner.ts";
 import { useInactivityEmail } from "./web/hooks/useInactivityEmail.ts";
@@ -54,7 +55,7 @@ function App() {
   const workflow = useWorkflow();
   const app = useAppState();
   const { settings, setSetting, resetToDefaults } = useSettings();
-  const audit = useAuditLog();
+  const audit = useAuditLog(undefined, settings.operatorName || undefined);
   const speed = useSpeedTracker({ threshold: 4 });
 
   // Auto-email shift report after 2 hours of inactivity (safety net)
@@ -67,6 +68,7 @@ function App() {
         boxes: app.boxes,
         packages: app.packages,
         emailRecipient: settings.emailRecipient,
+        operatorName: settings.operatorName,
         logEvent: audit.logEvent,
         showToast: app.showToast,
         auditEntries: audit.entries,
@@ -82,6 +84,12 @@ function App() {
     hasData: app.animals.length > 0,
     onInactivityTimeout: handleInactivityTimeout,
   });
+
+  // Operator gate: require name before allowing app interaction
+  const handleOperatorConfirm = useCallback((name: string) => {
+    setSetting("operatorName", name);
+    audit.logEvent("operator_shift_started", { operatorName: name });
+  }, [setSetting, audit]);
 
   // Global barcode scanner: active on all tabs except Scanner (which has its own).
   // When a scan is detected, shows a popup with package details and void option.
@@ -259,6 +267,7 @@ function App() {
           boxes: app.boxes,
           packages: app.packages,
           emailRecipient: settings.emailRecipient,
+          operatorName: settings.operatorName,
           logEvent: audit.logEvent,
           showToast: app.showToast,
           auditEntries: audit.entries,
@@ -273,6 +282,7 @@ function App() {
     // to free browser memory for the next shift.
     app.clearAllData();
     audit.clearLog();
+    setSetting("operatorName", "");
 
     // Small delay to let final writes flush to localStorage
     await new Promise(r => setTimeout(r, 100));
@@ -338,6 +348,7 @@ function App() {
             animals={app.animals}
             boxes={app.boxes}
             packages={app.packages}
+            operatorName={settings.operatorName}
             getPackagesForAnimal={app.getPackagesForAnimal}
             getManifestData={app.getManifestData}
             onCreateAnimal={app.createAnimal}
@@ -363,6 +374,7 @@ function App() {
             packages={app.packages}
             boxes={app.boxes}
             animals={app.animals}
+            operatorName={settings.operatorName}
             onVoidPackage={handleVoidPackage}
             getAllPackagesForBox={app.getAllPackagesForBox}
             emailRecipient={settings.emailRecipient}
@@ -389,6 +401,7 @@ function App() {
             showToast={app.showToast}
             auditEntries={audit.entries}
             onClearAuditLog={audit.clearLog}
+            logEvent={audit.logEvent}
           />
         )}
       </main>
@@ -397,6 +410,7 @@ function App() {
         animalName={currentAnimal?.name ?? null}
         boxNumber={currentBox?.boxNumber ?? null}
         packageCount={packageCount}
+        operatorName={settings.operatorName || null}
       />
 
       {/* Speed encouragement popup */}
@@ -431,6 +445,12 @@ function App() {
           onCancel={() => setShowExitConfirm(false)}
         />
       )}
+
+      {/* Operator identification gate */}
+      <OperatorGateModal
+        isOpen={!settings.operatorName}
+        onConfirm={handleOperatorConfirm}
+      />
 
       {/* Floating toast */}
       {app.toast && (

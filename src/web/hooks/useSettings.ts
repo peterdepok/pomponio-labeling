@@ -27,6 +27,8 @@ export interface SettingsValues {
   scaleMaxWeightLb: number;
   // System
   deviceId: string;
+  // Operator
+  operatorName: string;
 }
 
 // --- Defaults ---
@@ -43,6 +45,7 @@ const DEFAULTS: SettingsValues = {
   scaleStabilityDelayMs: 2000,
   scaleMaxWeightLb: 30,
   deviceId: "",
+  operatorName: "",
 };
 
 // --- localStorage helpers ---
@@ -107,6 +110,7 @@ function initSettings(): SettingsValues {
     scaleStabilityDelayMs: readNumber("scaleStabilityDelayMs", DEFAULTS.scaleStabilityDelayMs),
     scaleMaxWeightLb: readNumber("scaleMaxWeightLb", DEFAULTS.scaleMaxWeightLb),
     deviceId,
+    operatorName: readString("operatorName", DEFAULTS.operatorName),
   };
 }
 
@@ -133,6 +137,7 @@ export function useSettings(): UseSettingsReturn {
       "emailRecipient", "autoEmailOnAnimalClose", "autoEmailDailyReport",
       "printerName", "printDarkness",
       "scaleMode", "serialPort", "serialBaudRate", "scaleStabilityDelayMs", "scaleMaxWeightLb",
+      "operatorName",
     ];
     for (const key of keysToRemove) {
       localStorage.removeItem(storageKey(key));

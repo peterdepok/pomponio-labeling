@@ -7,6 +7,7 @@ interface InfoBarProps {
   animalName: string | null;
   boxNumber: number | null;
   packageCount: number;
+  operatorName: string | null;
 }
 
 interface HudCellProps {
@@ -52,7 +53,7 @@ function HudCell({ label, value, color, active }: HudCellProps) {
   );
 }
 
-export function InfoBar({ animalName, boxNumber, packageCount }: InfoBarProps) {
+export function InfoBar({ animalName, boxNumber, packageCount, operatorName }: InfoBarProps) {
   return (
     <div
       className="h-11 flex items-center px-2 flex-shrink-0"
@@ -78,6 +79,12 @@ export function InfoBar({ animalName, boxNumber, packageCount }: InfoBarProps) {
         value={String(packageCount)}
         color="#ffa500"
         active={packageCount > 0}
+      />
+      <HudCell
+        label="Operator"
+        value={operatorName ?? "None"}
+        color="#b197fc"
+        active={operatorName !== null}
       />
     </div>
   );

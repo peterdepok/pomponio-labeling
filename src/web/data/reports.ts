@@ -13,6 +13,7 @@ interface SendDailyReportParams {
   boxes: Box[];
   packages: Package[];
   emailRecipient: string;
+  operatorName: string;
   logEvent: LogEventFn;
   showToast: (msg: string) => void;
   auditEntries?: AuditEntry[];
@@ -27,6 +28,7 @@ export async function sendDailyReport({
   boxes,
   packages,
   emailRecipient,
+  operatorName,
   logEvent,
   showToast,
   auditEntries,
@@ -35,7 +37,7 @@ export async function sendDailyReport({
     return false;
   }
 
-  const csv = generateDailyProductionCsv(animals, boxes, packages);
+  const csv = generateDailyProductionCsv(animals, boxes, packages, operatorName);
   const today = new Date().toLocaleDateString().replace(/\//g, "-");
   const filename = `daily_production_${today}.csv`;
 
@@ -45,7 +47,7 @@ export async function sendDailyReport({
   // Build audit log attachment if entries were provided
   const extraAttachments: { content: string; filename: string }[] = [];
   if (auditEntries && auditEntries.length > 0) {
-    const auditCsv = generateAuditLogCsv(auditEntries);
+    const auditCsv = generateAuditLogCsv(auditEntries, operatorName);
     const auditFilename = `audit_log_${today}.csv`;
     extraAttachments.push({ content: auditCsv, filename: auditFilename });
 

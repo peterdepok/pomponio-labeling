@@ -28,6 +28,7 @@ interface AnimalsScreenProps {
   animals: Animal[];
   boxes: Box[];
   packages: Package[];
+  operatorName: string;
   getPackagesForAnimal: (animalId: number) => Package[];
   getManifestData: (animalId: number) => ManifestItem[];
   onCreateAnimal: (name: string) => number;
@@ -46,6 +47,7 @@ export function AnimalsScreen({
   animals,
   boxes,
   packages,
+  operatorName,
   getPackagesForAnimal,
   getManifestData,
   onCreateAnimal,
@@ -120,7 +122,7 @@ export function AnimalsScreen({
     });
 
     // Generate manifest CSV
-    const csv = generateAnimalManifestCsv(animal, boxes, packages);
+    const csv = generateAnimalManifestCsv(animal, boxes, packages, operatorName);
     const safeName = animal.name.replace(/[^a-zA-Z0-9]/g, "_");
     const filename = `manifest_${safeName}_${Date.now()}.csv`;
 
@@ -171,7 +173,7 @@ export function AnimalsScreen({
       return;
     }
 
-    const csv = generateDailyProductionCsv(animals, boxes, packages);
+    const csv = generateDailyProductionCsv(animals, boxes, packages, operatorName);
     const today = new Date().toLocaleDateString().replace(/\//g, "-");
     const filename = `daily_production_${today}.csv`;
 

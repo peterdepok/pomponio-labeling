@@ -62,6 +62,7 @@ export function generateAnimalManifestCsv(
   animal: Animal,
   boxes: Box[],
   packages: Package[],
+  operatorName: string = "",
 ): string {
   const animalBoxes = boxes.filter(b => b.animalId === animal.id);
   const animalPkgs = packages.filter(p => p.animalId === animal.id && !p.voided);
@@ -73,6 +74,7 @@ export function generateAnimalManifestCsv(
 
   // Header
   lines.push("Pomponio Ranch - Animal Manifest");
+  if (operatorName) lines.push(row("Operator", operatorName));
   lines.push(row("Animal", animal.name));
   lines.push(row("Started", animal.startedAt));
   lines.push(row("Generated", now));
@@ -118,6 +120,7 @@ export function generateDailyProductionCsv(
   animals: Animal[],
   boxes: Box[],
   packages: Package[],
+  operatorName: string = "",
 ): string {
   const activePkgs = packages.filter(p => !p.voided);
   const totalWeight = activePkgs.reduce((s, p) => s + p.weightLb, 0);
@@ -128,6 +131,7 @@ export function generateDailyProductionCsv(
 
   // Header
   lines.push("Pomponio Ranch - Daily Production Report");
+  if (operatorName) lines.push(row("Operator", operatorName));
   lines.push(row("Date", today));
   lines.push(row("Generated", now));
   lines.push(row("Animals", animals.length));
@@ -165,9 +169,10 @@ export function generateDailyProductionCsv(
 
 // ── Audit Log CSV ─────────────────────────────────────────────
 
-export function generateAuditLogCsv(entries: AuditEntry[]): string {
+export function generateAuditLogCsv(entries: AuditEntry[], operatorName: string = ""): string {
   const lines: string[] = [];
   lines.push("Pomponio Ranch - Shift Audit Log");
+  if (operatorName) lines.push(row("Operator", operatorName));
   lines.push(row("Generated", new Date().toLocaleString()));
   lines.push(row("Events", entries.length));
   lines.push("");

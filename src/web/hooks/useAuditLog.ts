@@ -31,6 +31,8 @@ export type AuditEventType =
   | "box_audited"
   | "manifest_resent"
   | "animal_purged"
+  | "operator_shift_started"
+  | "operator_changed"
   | "inactivity_auto_report"
   | "app_exit_initiated";
 
@@ -59,6 +61,8 @@ export interface AuditPayloads {
   box_audited: { boxId: number; boxNumber: number; packageCount: number; voidedCount: number };
   manifest_resent: { animalId: number; animalName: string; recipient: string; success: boolean };
   animal_purged: { animalId: number; animalName: string };
+  operator_shift_started: { operatorName: string };
+  operator_changed: { oldName: string; newName: string };
   inactivity_auto_report: { timeoutHours: number };
   app_exit_initiated: Record<string, never>;
 }
@@ -101,7 +105,10 @@ export interface UseAuditLogReturn {
   clearLog: () => void;
 }
 
-export function useAuditLog(maxEntries: number = DEFAULT_MAX_ENTRIES): UseAuditLogReturn {
+export function useAuditLog(
+  maxEntries: number = DEFAULT_MAX_ENTRIES,
+  operatorName?: string,
+): UseAuditLogReturn {
   const [entries, setEntries] = useState<AuditEntry[]>(readLog);
 
   const logEvent = useCallback(<T extends AuditEventType>(
@@ -111,7 +118,10 @@ export function useAuditLog(maxEntries: number = DEFAULT_MAX_ENTRIES): UseAuditL
     const entry: AuditEntry = {
       timestamp: new Date().toISOString(),
       eventType,
-      payload,
+      payload: {
+        ...payload,
+        ...(operatorName ? { operator: operatorName } : {}),
+      } as AuditPayloads[T],
     };
     // Persist to server-side audit log (fire-and-forget)
     fetch("/api/audit", {
@@ -129,7 +139,7 @@ export function useAuditLog(maxEntries: number = DEFAULT_MAX_ENTRIES): UseAuditL
       writeLog(trimmed);
       return trimmed;
     });
-  }, [maxEntries]);
+  }, [maxEntries, operatorName]);
 
   const clearLog = useCallback(() => {
     localStorage.removeItem(AUDIT_KEY);
