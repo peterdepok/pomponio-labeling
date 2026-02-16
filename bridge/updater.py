@@ -22,13 +22,18 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _run(cmd: list[str], timeout: int = 30) -> subprocess.CompletedProcess:
-    """Run a command in PROJECT_ROOT and return the result."""
+    """Run a command in PROJECT_ROOT and return the result.
+
+    On Windows, shell=True is required so cmd.exe can resolve .cmd
+    wrappers like npm.cmd that subprocess cannot find directly.
+    """
     return subprocess.run(
         cmd,
         cwd=PROJECT_ROOT,
         capture_output=True,
         text=True,
         timeout=timeout,
+        shell=(sys.platform == "win32"),
     )
 
 
