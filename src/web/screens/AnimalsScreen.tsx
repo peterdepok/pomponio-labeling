@@ -33,6 +33,7 @@ interface AnimalsScreenProps {
   onCreateAnimal: (name: string) => number;
   onSelectAnimal: (animalId: number) => void;
   onCloseAnimal: (animalId: number) => void;
+  onPurgeAnimal: (animalId: number) => void;
   emailRecipient: string;
   autoEmailOnAnimalClose: boolean;
   autoEmailDailyReport: boolean;
@@ -50,6 +51,7 @@ export function AnimalsScreen({
   onCreateAnimal,
   onSelectAnimal,
   onCloseAnimal,
+  onPurgeAnimal,
   emailRecipient,
   autoEmailOnAnimalClose,
   autoEmailDailyReport,
@@ -102,7 +104,7 @@ export function AnimalsScreen({
     showToast(`Started: ${name}`);
   };
 
-  /** Close animal, download manifest CSV, attempt email. */
+  /** Close animal, download manifest CSV, attempt email, then purge from memory. */
   const handleCloseAnimal = async (animalId: number) => {
     const animal = animals.find(a => a.id === animalId);
     if (!animal) return;
@@ -155,6 +157,11 @@ export function AnimalsScreen({
         showToast(`Email failed: ${result.error || "unknown"}. CSV saved locally.`);
       }
     }
+
+    // CSV is safely on disk (and email attempted). Purge the closed animal's
+    // boxes and packages from React state / localStorage to free browser memory.
+    onPurgeAnimal(animalId);
+    logEvent("animal_purged", { animalId, animalName: animal.name });
   };
 
   /** Generate and send daily production report. */

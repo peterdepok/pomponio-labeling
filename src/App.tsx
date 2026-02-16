@@ -269,7 +269,12 @@ function App() {
       }
     }
 
-    // Small delay to let final audit writes flush to localStorage
+    // Reports are saved to disk. Clear session data from localStorage
+    // to free browser memory for the next shift.
+    app.clearAllData();
+    audit.clearLog();
+
+    // Small delay to let final writes flush to localStorage
     await new Promise(r => setTimeout(r, 100));
 
     // Attempt to close the window; fall back to blank page
@@ -344,6 +349,7 @@ function App() {
               setActiveTab("Products");
             }}
             onCloseAnimal={app.closeAnimal}
+            onPurgeAnimal={app.purgeAnimal}
             emailRecipient={settings.emailRecipient}
             autoEmailOnAnimalClose={settings.autoEmailOnAnimalClose}
             autoEmailDailyReport={settings.autoEmailDailyReport}

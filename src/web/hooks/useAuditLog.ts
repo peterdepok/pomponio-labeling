@@ -30,6 +30,7 @@ export type AuditEventType =
   | "package_voided"
   | "box_audited"
   | "manifest_resent"
+  | "animal_purged"
   | "inactivity_auto_report"
   | "app_exit_initiated";
 
@@ -57,6 +58,7 @@ export interface AuditPayloads {
   package_voided: { packageId: number; barcode: string; sku: string; productName: string; reason: string };
   box_audited: { boxId: number; boxNumber: number; packageCount: number; voidedCount: number };
   manifest_resent: { animalId: number; animalName: string; recipient: string; success: boolean };
+  animal_purged: { animalId: number; animalName: string };
   inactivity_auto_report: { timeoutHours: number };
   app_exit_initiated: Record<string, never>;
 }

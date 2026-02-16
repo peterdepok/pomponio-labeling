@@ -298,6 +298,18 @@ export function useAppState() {
     }
   }, []);
 
+  /** Remove a closed animal and its boxes/packages from state and localStorage.
+   *  Call after the animal's manifest CSV has been saved to disk. */
+  const purgeAnimal = useCallback((animalId: number) => {
+    setAnimals(prev => prev.filter(a => a.id !== animalId));
+    setBoxes(prev => prev.filter(b => b.animalId !== animalId));
+    setPackages(prev => prev.filter(p => p.animalId !== animalId));
+    if (currentAnimalId === animalId) {
+      setCurrentAnimalId(null);
+      setCurrentBoxId(null);
+    }
+  }, [currentAnimalId]);
+
   const clearAllData = useCallback(() => {
     setAnimals([]);
     setBoxes([]);
@@ -336,6 +348,7 @@ export function useAppState() {
     voidPackage,
     selectAnimal,
     setCurrentBoxId,
+    purgeAnimal,
     clearAllData,
   };
 }
