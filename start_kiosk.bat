@@ -1,25 +1,25 @@
 @echo off
 REM ───────────────────────────────────────────────────────
-REM  Pomponio Ranch Labeling System — Kiosk Auto-Start
+REM  Pomponio Ranch Labeling System — Kiosk Launcher
 REM
-REM  Place a shortcut to this file in:
-REM    shell:startup   (Win+R, type "shell:startup", Enter)
+REM  Usage:
+REM    start_kiosk.bat          — manual launch (no delay)
+REM    start_kiosk.bat --boot   — auto-start on boot (10s delay)
 REM
-REM  Waits 10 seconds for Windows networking and USB devices
-REM  to settle, then launches run_production.py headlessly.
-REM  Logs output to kiosk.log for debugging.
+REM  Place a shortcut in shell:startup with --boot flag for
+REM  auto-start on login. Desktop shortcut uses no flag.
 REM ───────────────────────────────────────────────────────
-
-REM --- Wait for system to settle after login ---
-timeout /t 10 /nobreak >nul
 
 REM --- Set working directory to project root ---
 cd /d "%~dp0"
 
+REM --- Boot delay: only when called with --boot flag ---
+if "%1"=="--boot" (
+    timeout /t 10 /nobreak >nul
+)
+
 REM --- Launch production server (no console window via pythonw) ---
-REM    If pythonw is not on PATH, try the full venv path.
 REM    Output goes to kiosk.log so crashes are diagnosable.
-REM    Note: pythonw runs without a visible console window.
 if exist ".venv\Scripts\pythonw.exe" (
     ".venv\Scripts\pythonw.exe" run_production.py >kiosk.log 2>&1
 ) else (
