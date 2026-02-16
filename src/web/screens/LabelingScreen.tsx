@@ -235,9 +235,22 @@ export function LabelingScreen({
                 <div className="text-xs uppercase tracking-[0.15em] text-[#606080] mb-1">
                   Brecknell 6710U
                 </div>
-                <div className="text-sm text-[#a0a0b0]">
-                  Reading from scale...
-                </div>
+                {"scaleError" in scale && (scale as { scaleError: string | null }).scaleError ? (
+                  <div
+                    className="text-sm font-bold py-2 px-4 rounded-lg mt-1"
+                    style={{
+                      color: "#ff6b6b",
+                      background: "rgba(255, 107, 107, 0.1)",
+                      border: "1px solid rgba(255, 107, 107, 0.3)",
+                    }}
+                  >
+                    SCALE ERROR: {(scale as { scaleError: string | null }).scaleError}
+                  </div>
+                ) : (
+                  <div className="text-sm text-[#a0a0b0]">
+                    Reading from scale...
+                  </div>
+                )}
               </div>
             )}
             <div
@@ -256,12 +269,25 @@ export function LabelingScreen({
           </div>
         )}
 
-        {/* WEIGHT_CAPTURED: brief transient state with print animation */}
+        {/* WEIGHT_CAPTURED: brief transient state with print animation + label preview */}
         {workflowState === WorkflowState.WEIGHT_CAPTURED && (
           <div className="flex-1 flex items-center justify-center relative">
             <PrintAnimation visible={true} />
             <div className="text-center">
               <WeightDisplay weight={context.weightLb ?? 0} stable locked />
+
+              {/* Live preview of the label about to print */}
+              {context.sku && context.weightLb && context.productName && (
+                <div className="flex justify-center mt-3 mb-2">
+                  <LabelPreview
+                    barcode={generateBarcode(context.sku, context.weightLb)}
+                    productName={context.productName}
+                    weightLb={context.weightLb}
+                    scale={0.55}
+                  />
+                </div>
+              )}
+
               <div
                 className="text-lg font-bold mt-4"
                 style={{

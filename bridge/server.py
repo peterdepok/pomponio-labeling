@@ -3,7 +3,7 @@
 Serves the built React app as static files and exposes hardware + service endpoints:
     GET  /api/scale        - cached weight reading from Brecknell 6710U
     POST /api/print        - send ZPL to Zebra ZP 230D via win32print
-    POST /api/email        - send CSV report via SMTP (queues on failure)
+    POST /api/email        - send CSV report via Resend API (queues on failure)
     POST /api/audit        - persist audit event to server-side log
     POST /api/export-csv   - save CSV to USB drive or local fallback
     GET  /api/health       - connection status for scale, printer, and email queue
@@ -181,6 +181,62 @@ def api_scale():
         response["error"] = data["error"]
 
     return jsonify(response)
+
+
+@app.route("/api/scale/detect", methods=["GET"])
+def api_scale_detect():
+    """Scan available COM ports and test each for a Brecknell 6710U response.
+
+    Returns a list of ports with their status (found, no_response, error).
+    """
+    try:
+        import serial as pyserial
+        from serial.tools.list_ports import comports
+    except ImportError:
+        return jsonify({"ok": False, "error": "pyserial not installed"}), 500
+
+    results = []
+    for port_info in sorted(comports(), key=lambda p: p.device):
+        port_name = port_info.device
+        entry = {"port": port_name, "description": port_info.description, "status": "unknown"}
+
+        # Skip the port that the scale poller is already using
+        scale = _get_scale()
+        if scale.connected and scale.port == port_name:
+            entry["status"] = "in_use"
+            entry["note"] = "Currently connected"
+            results.append(entry)
+            continue
+
+        try:
+            test_serial = pyserial.Serial(
+                port=port_name,
+                baudrate=config.scale_baud_rate,
+                bytesize=pyserial.EIGHTBITS,
+                parity=pyserial.PARITY_NONE,
+                stopbits=pyserial.STOPBITS_ONE,
+                timeout=1.5,
+            )
+            test_serial.reset_input_buffer()
+            test_serial.write(b"W\r")
+            response = test_serial.read(50)
+            test_serial.close()
+
+            if response and (b"lb" in response or b"kg" in response or b"oz" in response):
+                entry["status"] = "found"
+                entry["note"] = "Brecknell scale detected"
+            elif response:
+                entry["status"] = "no_match"
+                entry["note"] = "Device responded but not a recognized scale"
+            else:
+                entry["status"] = "no_response"
+        except Exception as e:
+            entry["status"] = "error"
+            entry["note"] = str(e)
+
+        results.append(entry)
+
+    return jsonify({"ok": True, "ports": results})
 
 
 @app.route("/api/print", methods=["POST"])

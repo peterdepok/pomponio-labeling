@@ -10,6 +10,7 @@ import { TouchButton } from "../components/TouchButton.tsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.tsx";
 import { KeyboardModal } from "../components/KeyboardModal.tsx";
 import { sendToPrinter } from "../data/printer.ts";
+import { useStorageMonitor } from "../hooks/useStorageMonitor.ts";
 
 // --- Props ---
 
@@ -234,6 +235,8 @@ export function SettingsScreen({
   const [updateInfo, setUpdateInfo] = useState<{ commitsBehind: number; summary: string } | null>(null);
 
   const [emailTesting, setEmailTesting] = useState(false);
+  const [scaleDetecting, setScaleDetecting] = useState(false);
+  const storage = useStorageMonitor();
 
   // Debounced email input
   const [emailDraft, setEmailDraft] = useState(settings.emailRecipient);
@@ -497,14 +500,47 @@ export function SettingsScreen({
             <div className="mt-4 space-y-4">
               <div>
                 <FieldLabel text="COM Port" />
-                <div
-                  onClick={() => setKeyboardField("comPort")}
-                  className="w-full h-16 px-4 text-lg rounded-xl bg-[#0d0d1a] flex items-center cursor-pointer"
-                  style={INPUT_STYLE}
-                >
-                  <span style={{ color: settings.serialPort ? "#e8e8e8" : "#404060" }}>
-                    {settings.serialPort || "Tap to enter COM port..."}
-                  </span>
+                <div className="flex gap-3 items-center">
+                  <div
+                    onClick={() => setKeyboardField("comPort")}
+                    className="flex-1 h-16 px-4 text-lg rounded-xl bg-[#0d0d1a] flex items-center cursor-pointer"
+                    style={INPUT_STYLE}
+                  >
+                    <span style={{ color: settings.serialPort ? "#e8e8e8" : "#404060" }}>
+                      {settings.serialPort || "Tap to enter COM port..."}
+                    </span>
+                  </div>
+                  <TouchButton
+                    text={scaleDetecting ? "Scanning..." : "Auto-Detect"}
+                    style="primary"
+                    size="sm"
+                    disabled={scaleDetecting}
+                    width="160px"
+                    onClick={async () => {
+                      setScaleDetecting(true);
+                      try {
+                        const res = await fetch("/api/scale/detect");
+                        const data = await res.json();
+                        if (!data.ok) {
+                          showToast(data.error || "Detection failed", "error");
+                          return;
+                        }
+                        const found = data.ports?.find((p: { status: string }) => p.status === "found" || p.status === "in_use");
+                        if (found) {
+                          onSetSetting("serialPort", found.port);
+                          showToast(`Scale found on ${found.port}`);
+                        } else if (data.ports?.length > 0) {
+                          showToast("No scale detected on any COM port.", "error");
+                        } else {
+                          showToast("No COM ports found.", "error");
+                        }
+                      } catch {
+                        showToast("Detection failed: bridge offline.", "error");
+                      } finally {
+                        setScaleDetecting(false);
+                      }
+                    }}
+                  />
                 </div>
               </div>
               <div>
@@ -554,6 +590,37 @@ export function SettingsScreen({
           <SectionHeader title="System" color="#ff6b6b" />
 
           <ReadOnlyRow label="App Version" value={`v${__APP_VERSION__}`} />
+
+          {/* localStorage usage bar */}
+          <div className="py-2">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-[#606080]">Local Storage</span>
+              <span className="text-xs font-mono text-[#a0a0b0]">
+                {storage.usageMB} / {storage.limitMB} MB ({storage.usagePercent}%)
+              </span>
+            </div>
+            <div
+              className="h-2 rounded-full overflow-hidden"
+              style={{ background: "#1a1a2e", border: "1px solid #2a2a4a" }}
+            >
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${storage.usagePercent}%`,
+                  background: storage.usagePercent >= 80
+                    ? "linear-gradient(90deg, #ff6b6b, #d32f2f)"
+                    : storage.usagePercent >= 50
+                      ? "linear-gradient(90deg, #ffa500, #ff8c00)"
+                      : "linear-gradient(90deg, #51cf66, #2e7d32)",
+                }}
+              />
+            </div>
+            {storage.usagePercent >= 80 && (
+              <div className="text-xs text-[#ff6b6b] mt-1">
+                Storage nearly full. Consider clearing old data or audit logs.
+              </div>
+            )}
+          </div>
 
           <div className="flex gap-3 mt-3">
             {updateStatus === "available" ? (

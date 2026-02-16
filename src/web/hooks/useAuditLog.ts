@@ -30,6 +30,7 @@ export type AuditEventType =
   | "package_voided"
   | "box_audited"
   | "manifest_resent"
+  | "inactivity_auto_report"
   | "app_exit_initiated";
 
 // --- Payload map (discriminated by eventType) ---
@@ -56,6 +57,7 @@ export interface AuditPayloads {
   package_voided: { packageId: number; barcode: string; sku: string; productName: string; reason: string };
   box_audited: { boxId: number; boxNumber: number; packageCount: number; voidedCount: number };
   manifest_resent: { animalId: number; animalName: string; recipient: string; success: boolean };
+  inactivity_auto_report: { timeoutHours: number };
   app_exit_initiated: Record<string, never>;
 }
 

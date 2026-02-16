@@ -23,6 +23,7 @@ interface ScaleApiResponse {
 }
 
 const POLL_MS = 200;
+const ERROR_THRESHOLD = 15; // consecutive failures before surfacing error (~3 seconds)
 
 export function useScaleApi(config?: ScaleApiConfig) {
   const maxWeight = config?.maxWeight ?? 30;
@@ -31,7 +32,9 @@ export function useScaleApi(config?: ScaleApiConfig) {
   const [weight, setWeight] = useState(0);
   const [stable, setStable] = useState(false);
   const [locked, setLocked] = useState(false);
+  const [scaleError, setScaleError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const failCountRef = useRef(0);
 
   // Poll the bridge scale endpoint
   useEffect(() => {
@@ -41,19 +44,32 @@ export function useScaleApi(config?: ScaleApiConfig) {
       try {
         const res = await fetch("/api/scale");
         if (!res.ok) {
+          failCountRef.current += 1;
           setStable(false);
+          if (failCountRef.current >= ERROR_THRESHOLD) {
+            setScaleError("Scale API not responding");
+          }
           return;
         }
         const data: ScaleApiResponse = await res.json();
         if (data.error) {
+          failCountRef.current += 1;
           setStable(false);
+          if (failCountRef.current >= ERROR_THRESHOLD) {
+            setScaleError(data.error);
+          }
           return;
         }
+        failCountRef.current = 0;
+        setScaleError(null);
         setWeight(data.weight);
         setStable(data.stable);
       } catch {
-        // Flask not running or network error; silently degrade
+        failCountRef.current += 1;
         setStable(false);
+        if (failCountRef.current >= ERROR_THRESHOLD) {
+          setScaleError("Bridge offline or scale disconnected");
+        }
       }
     };
 
@@ -88,6 +104,7 @@ export function useScaleApi(config?: ScaleApiConfig) {
     stable,
     locked,
     maxWeight,
+    scaleError,
     updateWeight,
     lockWeight,
     reset,

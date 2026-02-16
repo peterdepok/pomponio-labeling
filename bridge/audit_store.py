@@ -3,8 +3,8 @@
 Events are appended to data/audit_log.json by the /api/audit endpoint.
 A background daemon thread checks the clock every 60 seconds and, at 2am
 local time, rotates the log (harvest + clear) and emails the contents as
-a CSV attachment. If SMTP fails, the email is queued for retry via the
-existing email_queue module.
+a CSV attachment via the Resend API. If delivery fails, the email is
+queued for retry via the existing email_queue module.
 """
 
 import csv
@@ -171,7 +171,7 @@ def start_audit_scheduler(config) -> threading.Thread:
     """Launch the nightly audit log email daemon thread.
 
     Args:
-        config: Config instance with smtp_* and email.audit_recipient properties.
+        config: Config instance with resend_api_key and email.audit_recipient properties.
 
     Returns:
         The started daemon Thread.

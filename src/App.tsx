@@ -22,8 +22,10 @@ import { useSpeedTracker } from "./web/hooks/useSpeedTracker.ts";
 import { SPEED_ENCOURAGEMENTS, CELEBRATION_ICONS } from "./web/data/celebrations.ts";
 import { ConfirmDialog } from "./web/components/ConfirmDialog.tsx";
 import { ScanPopup } from "./web/components/ScanPopup.tsx";
+import { OfflineBanner } from "./web/components/OfflineBanner.tsx";
 import { sendDailyReport } from "./web/data/reports.ts";
 import { useBarcodeScanner } from "./web/hooks/useBarcodeScanner.ts";
+import { useInactivityEmail } from "./web/hooks/useInactivityEmail.ts";
 import { parseBarcode } from "./web/data/barcode.ts";
 import type { Product } from "./web/data/skus.ts";
 import type { Package } from "./web/hooks/useAppState.ts";
@@ -54,6 +56,32 @@ function App() {
   const { settings, setSetting, resetToDefaults } = useSettings();
   const audit = useAuditLog();
   const speed = useSpeedTracker({ threshold: 4 });
+
+  // Auto-email shift report after 2 hours of inactivity (safety net)
+  const handleInactivityTimeout = useCallback(async () => {
+    if (app.animals.length === 0 || !settings.emailRecipient) return;
+    audit.logEvent("inactivity_auto_report", { timeoutHours: 2 });
+    try {
+      await sendDailyReport({
+        animals: app.animals,
+        boxes: app.boxes,
+        packages: app.packages,
+        emailRecipient: settings.emailRecipient,
+        logEvent: audit.logEvent,
+        showToast: app.showToast,
+        auditEntries: audit.entries,
+      });
+      app.showToast("Inactivity detected. Shift report auto-sent.");
+    } catch {
+      app.showToast("Inactivity report failed to send.", "error");
+    }
+  }, [app, settings.emailRecipient, audit]);
+
+  const inactivity = useInactivityEmail({
+    enabled: !!settings.emailRecipient,
+    hasData: app.animals.length > 0,
+    onInactivityTimeout: handleInactivityTimeout,
+  });
 
   // Global barcode scanner: active on all tabs except Scanner (which has its own).
   // When a scan is detected, shows a popup with package details and void option.
@@ -151,7 +179,8 @@ function App() {
       boxId: app.currentBoxId,
     });
     speed.recordPackage();
-  }, [app, audit, speed]);
+    inactivity.recordActivity();
+  }, [app, audit, speed, inactivity]);
 
   const handleCloseBox = useCallback((boxId: number) => {
     const box = app.boxes.find(b => b.id === boxId);
@@ -255,6 +284,7 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: "#0d0d1a" }}>
+      <OfflineBanner />
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} onExit={() => setShowExitConfirm(true)} />
 
       <main className="flex-1 overflow-hidden">
