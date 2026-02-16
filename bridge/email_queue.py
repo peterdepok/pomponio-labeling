@@ -89,6 +89,7 @@ def _retry_loop(config, interval: float) -> None:
                 subject=entry["subject"],
                 csv_content=entry["csv_content"],
                 filename=entry["filename"],
+                attachments=entry.get("attachments"),
             )
             if result.get("ok"):
                 logger.info("Queued email sent: %s -> %s", entry["subject"], entry["to"])

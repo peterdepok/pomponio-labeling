@@ -5,11 +5,17 @@
  * and returns { ok: true, queued: true }.
  */
 
+interface Attachment {
+  content: string;
+  filename: string;
+}
+
 interface SendReportParams {
   to: string;
   subject: string;
   csvContent: string;
   filename: string;
+  attachments?: Attachment[];
 }
 
 export interface SendReportResult {

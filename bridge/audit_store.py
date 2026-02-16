@@ -138,9 +138,8 @@ def _scheduler_loop(config) -> None:
         yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
         filename = f"audit_log_{yesterday}.csv"
 
-        # Determine recipient from config (reuse the email username as recipient
-        # unless a dedicated audit_recipient is configured)
-        recipient = config.get("email", "audit_recipient", fallback="") or config.smtp_username
+        # Determine recipient from config
+        recipient = config.get("email", "audit_recipient", fallback="")
 
         if not recipient:
             logger.warning("No audit email recipient configured; skipping send")

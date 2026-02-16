@@ -17,15 +17,18 @@ RESEND_API_URL = "https://api.resend.com/emails"
 RESEND_TIMEOUT = 30  # seconds
 
 
-def send_email(config, to: str, subject: str, csv_content: str, filename: str) -> dict:
-    """Send an email with a CSV attachment via the Resend API.
+def send_email(config, to: str, subject: str, csv_content: str, filename: str,
+               *, attachments: list[dict] | None = None) -> dict:
+    """Send an email with one or more CSV attachments via the Resend API.
 
     Args:
         config: Config instance with resend_api_key and resend_from properties.
         to: Recipient email address(es), comma-separated for multiple.
         subject: Email subject line.
-        csv_content: Raw CSV string to attach.
-        filename: Attachment filename (e.g. "manifest_Cow1_123456.csv").
+        csv_content: Raw CSV string for the primary attachment.
+        filename: Primary attachment filename.
+        attachments: Optional list of extra attachments, each a dict with
+                     "content" (raw string) and "filename" keys.
 
     Returns:
         {"ok": True} on success, {"ok": False, "error": "<message>"} on failure.
@@ -41,18 +44,26 @@ def send_email(config, to: str, subject: str, csv_content: str, filename: str) -
     if not recipients:
         return {"ok": False, "error": "No valid recipient addresses"}
 
+    # Build attachment list: primary CSV first, then any extras
+    att_list = [
+        {
+            "filename": filename,
+            "content": base64.b64encode(csv_content.encode("utf-8")).decode("ascii"),
+        }
+    ]
+    for extra in (attachments or []):
+        att_list.append({
+            "filename": extra["filename"],
+            "content": base64.b64encode(extra["content"].encode("utf-8")).decode("ascii"),
+        })
+
     # Build the Resend API payload
     payload = {
         "from": from_addr,
         "to": recipients,
         "subject": subject,
         "text": "Report attached.",
-        "attachments": [
-            {
-                "filename": filename,
-                "content": base64.b64encode(csv_content.encode("utf-8")).decode("ascii"),
-            }
-        ],
+        "attachments": att_list,
     }
 
     headers = {

@@ -4,8 +4,8 @@
  */
 
 import type { Animal, Box, Package } from "../hooks/useAppState.ts";
-import type { LogEventFn } from "../hooks/useAuditLog.ts";
-import { generateDailyProductionCsv, exportCsv } from "./csv.ts";
+import type { LogEventFn, AuditEntry } from "../hooks/useAuditLog.ts";
+import { generateDailyProductionCsv, generateAuditLogCsv, exportCsv } from "./csv.ts";
 import { sendReport } from "./email.ts";
 
 interface SendDailyReportParams {
@@ -15,6 +15,7 @@ interface SendDailyReportParams {
   emailRecipient: string;
   logEvent: LogEventFn;
   showToast: (msg: string) => void;
+  auditEntries?: AuditEntry[];
 }
 
 /**
@@ -28,6 +29,7 @@ export async function sendDailyReport({
   emailRecipient,
   logEvent,
   showToast,
+  auditEntries,
 }: SendDailyReportParams): Promise<boolean> {
   if (animals.length === 0) {
     return false;
@@ -40,13 +42,25 @@ export async function sendDailyReport({
   const exportResult = await exportCsv(csv, filename);
   logEvent("daily_report_exported", { filename, path: exportResult.path });
 
+  // Build audit log attachment if entries were provided
+  const extraAttachments: { content: string; filename: string }[] = [];
+  if (auditEntries && auditEntries.length > 0) {
+    const auditCsv = generateAuditLogCsv(auditEntries);
+    const auditFilename = `audit_log_${today}.csv`;
+    extraAttachments.push({ content: auditCsv, filename: auditFilename });
+
+    // Also export audit log to disk
+    await exportCsv(auditCsv, auditFilename);
+  }
+
   if (emailRecipient) {
-    showToast("Sending daily report...");
+    showToast("Sending shift report...");
     const result = await sendReport({
       to: emailRecipient,
-      subject: `Pomponio Ranch Daily Production: ${today}`,
+      subject: `Pomponio Ranch Shift Report: ${today}`,
       csvContent: csv,
       filename,
+      attachments: extraAttachments.length > 0 ? extraAttachments : undefined,
     });
 
     if (result.ok && result.queued) {
@@ -54,10 +68,10 @@ export async function sendDailyReport({
       showToast("Email queued, will retry when online.");
     } else if (result.ok) {
       logEvent("daily_report_emailed", { recipient: emailRecipient, success: true });
-      showToast(`Daily report emailed to ${emailRecipient}`);
+      showToast(`Shift report emailed to ${emailRecipient}`);
     } else {
       logEvent("daily_report_emailed", { recipient: emailRecipient, success: false });
-      showToast(`Email failed: ${result.error || "unknown"}. CSV saved locally.`);
+      showToast(`Email failed: ${result.error || "unknown"}. CSVs saved locally.`);
     }
   }
 

@@ -8,6 +8,7 @@
  */
 
 import type { Animal, Box, Package } from "../hooks/useAppState.ts";
+import type { AuditEntry } from "../hooks/useAuditLog.ts";
 
 // ── Shared types ───────────────────────────────────────────────
 
@@ -159,6 +160,24 @@ export function generateDailyProductionCsv(
   // Grand total
   lines.push(row("GRAND TOTAL", "", activePkgs.length, totalWeight.toFixed(2)));
 
+  return lines.join("\n");
+}
+
+// ── Audit Log CSV ─────────────────────────────────────────────
+
+export function generateAuditLogCsv(entries: AuditEntry[]): string {
+  const lines: string[] = [];
+  lines.push("Pomponio Ranch - Shift Audit Log");
+  lines.push(row("Generated", new Date().toLocaleString()));
+  lines.push(row("Events", entries.length));
+  lines.push("");
+  lines.push(row("Timestamp", "Event Type", "Details"));
+  for (const e of entries) {
+    const details = Object.entries(e.payload)
+      .map(([k, v]) => `${k}=${v}`)
+      .join("; ");
+    lines.push(row(e.timestamp, e.eventType, details));
+  }
   return lines.join("\n");
 }
 

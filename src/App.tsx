@@ -182,7 +182,7 @@ function App() {
     setShowExitConfirm(false);
     audit.logEvent("app_exit_initiated", {});
 
-    // Send daily report if email is configured and there is data
+    // Send shift report (production data + audit log) if there is data
     if (app.animals.length > 0) {
       await sendDailyReport({
         animals: app.animals,
@@ -191,6 +191,7 @@ function App() {
         emailRecipient: settings.emailRecipient,
         logEvent: audit.logEvent,
         showToast: app.showToast,
+        auditEntries: audit.entries,
       });
     }
 
@@ -326,9 +327,9 @@ function App() {
       {/* Exit confirmation dialog */}
       {showExitConfirm && (
         <ConfirmDialog
-          title="End Session"
-          message="Send daily report and close the app?"
-          confirmText="Exit"
+          title="End Shift"
+          message="Send shift report with audit log and close?"
+          confirmText="End Shift"
           onConfirm={handleExitConfirm}
           onCancel={() => setShowExitConfirm(false)}
         />

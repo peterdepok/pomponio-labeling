@@ -207,27 +207,34 @@ def api_print():
 
 @app.route("/api/email", methods=["POST"])
 def api_email():
-    """Send a CSV report via SMTP. Queues on failure for background retry."""
+    """Send a CSV report via Resend API. Queues on failure for background retry.
+
+    Accepts optional `attachments` array for additional files alongside
+    the primary csvContent/filename pair.
+    """
     body = request.get_json(silent=True) or {}
     to = body.get("to", "")
     subject = body.get("subject", "")
     csv_content = body.get("csvContent", "")
     filename = body.get("filename", "report.csv")
+    extra_attachments = body.get("attachments", [])
 
     if not to or not subject or not csv_content:
         return jsonify({"ok": False, "error": "Missing required fields (to, subject, csvContent)"}), 400
 
-    result = send_email(config, to, subject, csv_content, filename)
+    result = send_email(config, to, subject, csv_content, filename,
+                        attachments=extra_attachments)
 
     if result.get("ok"):
         return jsonify({"ok": True})
 
-    # Send failed; queue for retry
+    # Send failed; queue for retry (include extra attachments in queued payload)
     enqueue({
         "to": to,
         "subject": subject,
         "csv_content": csv_content,
         "filename": filename,
+        "attachments": extra_attachments,
     })
     logger.warning("Email to %s queued for retry: %s", to, result.get("error"))
     return jsonify({"ok": True, "queued": True, "error": result.get("error", "Send failed")})
