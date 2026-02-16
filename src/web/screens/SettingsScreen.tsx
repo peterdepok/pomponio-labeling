@@ -594,7 +594,7 @@ export function SettingsScreen({
           {/* localStorage usage bar */}
           <div className="py-2">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-[#606080]">Local Storage</span>
+              <span className="text-xs text-[#606080]">Local Storage (browser limit: 5 MB)</span>
               <span className="text-xs font-mono text-[#a0a0b0]">
                 {storage.usageMB} / {storage.limitMB} MB ({storage.usagePercent}%)
               </span>
@@ -615,9 +615,13 @@ export function SettingsScreen({
                 }}
               />
             </div>
-            {storage.usagePercent >= 80 && (
+            {storage.usagePercent >= 80 ? (
               <div className="text-xs text-[#ff6b6b] mt-1">
-                Storage nearly full. Consider clearing old data or audit logs.
+                Storage nearly full. Export data and clear session to free space.
+              </div>
+            ) : (
+              <div className="text-xs text-[#606080] mt-1">
+                Session data, audit log, and settings. Export + clear frees space.
               </div>
             )}
           </div>
