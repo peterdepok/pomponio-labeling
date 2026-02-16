@@ -278,10 +278,10 @@ function App() {
       }
     }
 
-    // Reports are saved to disk. Clear session data from localStorage
-    // to free browser memory for the next shift.
-    app.clearAllData();
-    audit.clearLog();
+    // Clear operator so the gate re-appears on next launch.
+    // Production data (animals, boxes, packages) and audit log are
+    // intentionally preserved across restarts so the day shift is not lost.
+    // Data is cleaned up naturally when animals are closed and purged.
     setSetting("operatorName", "");
 
     // Small delay to let final writes flush to localStorage
