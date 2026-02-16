@@ -134,19 +134,14 @@ def main():
         print("No browser found. Open the following URL manually:")
         print(f"  {URL}")
 
-    # 4. Wait until browser exits or user presses Ctrl+C
+    # 4. Keep Flask alive until Ctrl+C (browser launch is fire-and-forget
+    #    because Chromium hands off to an existing process and exits immediately)
+    print("Press Ctrl+C to stop the server.")
     try:
-        if browser_proc:
-            browser_proc.wait()
-            print("Browser closed. Shutting down.")
-        else:
-            print("Press Ctrl+C to stop the server.")
-            while True:
-                time.sleep(1)
+        while True:
+            time.sleep(1)
     except KeyboardInterrupt:
         print("\nShutting down...")
-        if browser_proc and browser_proc.poll() is None:
-            browser_proc.terminate()
 
 
 if __name__ == "__main__":
