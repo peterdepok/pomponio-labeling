@@ -1,7 +1,7 @@
 """Pomponio Ranch Labeling System - Production Entry Point.
 
 Starts the Flask bridge serving the React UI at localhost:8000
-and opens Chrome in kiosk mode on the Beelink Mini PC.
+and opens Edge (or Chrome) in kiosk mode on the Beelink Mini PC.
 
 Usage:
     python run_production.py
@@ -22,10 +22,16 @@ PORT = 8000
 URL = f"http://localhost:{PORT}"
 
 # ---------------------------------------------------------------------------
-# Chrome detection (Windows 11)
+# Browser detection (Edge preferred, Chrome fallback)
 # ---------------------------------------------------------------------------
 
-CHROME_CANDIDATES = [
+BROWSER_CANDIDATES = [
+    # Microsoft Edge (pre-installed on Windows 11)
+    os.path.join(os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)"),
+                 "Microsoft", "Edge", "Application", "msedge.exe"),
+    os.path.join(os.environ.get("PROGRAMFILES", "C:\\Program Files"),
+                 "Microsoft", "Edge", "Application", "msedge.exe"),
+    # Google Chrome (fallback)
     os.path.join(os.environ.get("PROGRAMFILES", "C:\\Program Files"),
                  "Google", "Chrome", "Application", "chrome.exe"),
     os.path.join(os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)"),
@@ -35,9 +41,9 @@ CHROME_CANDIDATES = [
 ]
 
 
-def find_chrome() -> str | None:
-    """Return the path to chrome.exe, or None if not found."""
-    for path in CHROME_CANDIDATES:
+def find_browser() -> str | None:
+    """Return the path to Edge or Chrome, or None if neither found."""
+    for path in BROWSER_CANDIDATES:
         if path and os.path.isfile(path):
             return path
     return None
@@ -103,14 +109,14 @@ def main():
 
     print(f"Flask bridge ready at {URL}")
 
-    # 3. Launch Chrome in kiosk mode
-    chrome = find_chrome()
-    chrome_proc = None
+    # 3. Launch browser in kiosk mode
+    browser = find_browser()
+    browser_proc = None
 
-    if chrome:
-        print(f"Launching Chrome kiosk: {chrome}")
-        chrome_proc = subprocess.Popen([
-            chrome,
+    if browser:
+        print(f"Launching kiosk browser: {browser}")
+        browser_proc = subprocess.Popen([
+            browser,
             "--kiosk",
             "--disable-restore-session-state",
             "--disable-infobars",
@@ -120,27 +126,27 @@ def main():
         ])
 
         def cleanup():
-            if chrome_proc and chrome_proc.poll() is None:
-                chrome_proc.terminate()
+            if browser_proc and browser_proc.poll() is None:
+                browser_proc.terminate()
 
         atexit.register(cleanup)
     else:
-        print("Chrome not found. Open the following URL manually:")
+        print("No browser found. Open the following URL manually:")
         print(f"  {URL}")
 
-    # 4. Wait until Chrome exits or user presses Ctrl+C
+    # 4. Wait until browser exits or user presses Ctrl+C
     try:
-        if chrome_proc:
-            chrome_proc.wait()
-            print("Chrome closed. Shutting down.")
+        if browser_proc:
+            browser_proc.wait()
+            print("Browser closed. Shutting down.")
         else:
             print("Press Ctrl+C to stop the server.")
             while True:
                 time.sleep(1)
     except KeyboardInterrupt:
         print("\nShutting down...")
-        if chrome_proc and chrome_proc.poll() is None:
-            chrome_proc.terminate()
+        if browser_proc and browser_proc.poll() is None:
+            browser_proc.terminate()
 
 
 if __name__ == "__main__":
