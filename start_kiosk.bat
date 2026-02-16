@@ -19,8 +19,9 @@ cd /d "%~dp0"
 REM --- Launch production server (no console window via pythonw) ---
 REM    If pythonw is not on PATH, try the full venv path.
 REM    Output goes to kiosk.log so crashes are diagnosable.
+REM    Note: pythonw runs without a visible console window.
 if exist ".venv\Scripts\pythonw.exe" (
-    start "" ".venv\Scripts\pythonw.exe" run_production.py >kiosk.log 2>&1
+    ".venv\Scripts\pythonw.exe" run_production.py >kiosk.log 2>&1
 ) else (
-    start "" pythonw run_production.py >kiosk.log 2>&1
+    pythonw run_production.py >kiosk.log 2>&1
 )

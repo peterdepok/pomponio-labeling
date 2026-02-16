@@ -221,18 +221,27 @@ function App() {
     setShowExitConfirm(false);
     audit.logEvent("app_exit_initiated", {});
 
-    // Send shift report (production data + audit log) if there is data
+    // Send shift report (production data + audit log) if there is data.
+    // Wrapped in try/catch so the exit always proceeds even if email fails.
     if (app.animals.length > 0) {
-      await sendDailyReport({
-        animals: app.animals,
-        boxes: app.boxes,
-        packages: app.packages,
-        emailRecipient: settings.emailRecipient,
-        logEvent: audit.logEvent,
-        showToast: app.showToast,
-        auditEntries: audit.entries,
-      });
+      try {
+        await sendDailyReport({
+          animals: app.animals,
+          boxes: app.boxes,
+          packages: app.packages,
+          emailRecipient: settings.emailRecipient,
+          logEvent: audit.logEvent,
+          showToast: app.showToast,
+          auditEntries: audit.entries,
+        });
+      } catch (err) {
+        console.error("Shift report failed, proceeding with exit:", err);
+        app.showToast("Shift report failed to send. Exiting anyway.");
+      }
     }
+
+    // Small delay to let final audit writes flush to localStorage
+    await new Promise(r => setTimeout(r, 100));
 
     // Attempt to close the window; fall back to blank page
     try {
