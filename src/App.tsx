@@ -339,11 +339,16 @@ function App() {
         <div
           className="fixed bottom-20 right-6 z-50 glass-surface rounded-xl px-6 py-4 max-w-sm"
           style={{
-            borderLeft: "3px solid #51cf66",
+            borderLeft: `3px solid ${app.toast.type === "error" ? "#ff6b6b" : "#51cf66"}`,
             animation: "toast-slide-in 300ms ease-out",
           }}
         >
-          <span className="text-sm font-semibold text-[#51cf66]">{app.toast}</span>
+          <span
+            className="text-sm font-semibold"
+            style={{ color: app.toast.type === "error" ? "#ff6b6b" : "#51cf66" }}
+          >
+            {app.toast.msg}
+          </span>
         </div>
       )}
     </div>

@@ -91,7 +91,7 @@ export function useAppState() {
   const [packages, setPackages] = useState<Package[]>(hydrated.packages);
   const [currentAnimalId, setCurrentAnimalId] = useState<number | null>(hydrated.currentAnimalId);
   const [currentBoxId, setCurrentBoxId] = useState<number | null>(hydrated.currentBoxId);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   // --- Persist state to localStorage on every change ---
   // Wrapped in try/catch to survive quota exceeded errors on kiosk browsers.
@@ -133,16 +133,17 @@ export function useAppState() {
 
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const showToast = useCallback((msg: string) => {
+  const showToast = useCallback((msg: string, type: "success" | "error" = "success") => {
     // Clear any pending toast dismissal to prevent stale timeouts
     if (toastTimerRef.current !== null) {
       clearTimeout(toastTimerRef.current);
     }
-    setToast(msg);
+    setToast({ msg, type });
+    const duration = type === "error" ? 6000 : 3000;
     toastTimerRef.current = setTimeout(() => {
       setToast(null);
       toastTimerRef.current = null;
-    }, 3000);
+    }, duration);
   }, []);
 
   // Cleanup on unmount

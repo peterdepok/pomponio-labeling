@@ -21,7 +21,7 @@ interface SettingsScreenProps {
   animalCount: number;
   boxCount: number;
   packageCount: number;
-  showToast: (msg: string) => void;
+  showToast: (msg: string, type?: "success" | "error") => void;
   auditEntries: AuditEntry[];
   onClearAuditLog: () => void;
 }
@@ -292,7 +292,7 @@ export function SettingsScreen({
       const res = await fetch("/api/update/check");
       const data = await res.json();
       if (data.error) {
-        showToast(`Update check failed: ${data.error}`);
+        showToast(`Update check failed: ${data.error}`, "error");
         setUpdateStatus("idle");
         return;
       }
@@ -307,7 +307,7 @@ export function SettingsScreen({
         setUpdateStatus("idle");
       }
     } catch {
-      showToast("Update check failed: network error.");
+      showToast("Update check failed: network error.", "error");
       setUpdateStatus("idle");
     }
   };
@@ -321,12 +321,12 @@ export function SettingsScreen({
       if (data.ok) {
         setUpdateStatus("restarting");
       } else {
-        showToast(`Update failed: ${data.error || "unknown"}`);
+        showToast(`Update failed: ${data.error || "unknown"}`, "error");
         setUpdateStatus("idle");
         setUpdateInfo(null);
       }
     } catch {
-      showToast("Update failed: network error.");
+      showToast("Update failed: network error.", "error");
       setUpdateStatus("idle");
       setUpdateInfo(null);
     }
@@ -389,7 +389,7 @@ export function SettingsScreen({
               disabled={emailTesting}
               onClick={() => {
                 if (!emailDraft) {
-                  showToast("Enter an email address first.");
+                  showToast("Enter an email address first.", "error");
                   return;
                 }
                 setEmailTesting(true);
@@ -403,10 +403,10 @@ export function SettingsScreen({
                     if (data.ok) {
                       showToast("Test email sent successfully.");
                     } else {
-                      showToast(`Email failed: ${data.error || "unknown"}`);
+                      showToast(`Email failed: ${data.error || "unknown"}`, "error");
                     }
                   })
-                  .catch(() => showToast("Email test failed: network error."))
+                  .catch(() => showToast("Email test failed: network error.", "error"))
                   .finally(() => setEmailTesting(false));
               }}
             />
