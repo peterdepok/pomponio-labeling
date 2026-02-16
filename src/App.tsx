@@ -21,8 +21,12 @@ import { useAuditLog } from "./web/hooks/useAuditLog.ts";
 import { useSpeedTracker } from "./web/hooks/useSpeedTracker.ts";
 import { SPEED_ENCOURAGEMENTS, CELEBRATION_ICONS } from "./web/data/celebrations.ts";
 import { ConfirmDialog } from "./web/components/ConfirmDialog.tsx";
+import { ScanPopup } from "./web/components/ScanPopup.tsx";
 import { sendDailyReport } from "./web/data/reports.ts";
+import { useBarcodeScanner } from "./web/hooks/useBarcodeScanner.ts";
+import { parseBarcode } from "./web/data/barcode.ts";
 import type { Product } from "./web/data/skus.ts";
+import type { Package } from "./web/hooks/useAppState.ts";
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabId>("Animals");
@@ -33,6 +37,11 @@ function App() {
   });
   const [lastUsedProduct, setLastUsedProduct] = useState<Product | null>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [scanPopup, setScanPopup] = useState<{
+    pkg: Package | null;
+    barcode: string;
+    errorMessage?: string;
+  } | null>(null);
 
   // Persist active category across page reloads
   useEffect(() => {
@@ -45,6 +54,36 @@ function App() {
   const { settings, setSetting, resetToDefaults } = useSettings();
   const audit = useAuditLog();
   const speed = useSpeedTracker({ threshold: 4 });
+
+  // Global barcode scanner: active on all tabs except Scanner (which has its own).
+  // When a scan is detected, shows a popup with package details and void option.
+  const handleGlobalScan = useCallback((barcode: string) => {
+    try {
+      const parsed = parseBarcode(barcode);
+      if (!parsed.valid) {
+        setScanPopup({ pkg: null, barcode, errorMessage: "Invalid check digit." });
+        return;
+      }
+      // Only handle individual package barcodes (quantity flag 0)
+      if (parsed.quantityFlag !== "0") {
+        setScanPopup({ pkg: null, barcode, errorMessage: "Box barcode. Use the Scanner tab for box audit." });
+        return;
+      }
+      const pkg = app.packages.find(p => p.barcode === barcode) ?? null;
+      if (pkg) {
+        setScanPopup({ pkg, barcode });
+      } else {
+        setScanPopup({ pkg: null, barcode, errorMessage: "Package not found in system." });
+      }
+    } catch {
+      setScanPopup({ pkg: null, barcode, errorMessage: "Invalid barcode format." });
+    }
+  }, [app.packages]);
+
+  useBarcodeScanner({
+    enabled: activeTab !== "Scanner",
+    onScan: handleGlobalScan,
+  });
 
   // Stable random message for speed popup (pick new on each show)
   const speedMsgRef = useRef({ message: "", icon: "" });
@@ -321,6 +360,19 @@ function App() {
           message={speedMsgRef.current.message}
           icon={speedMsgRef.current.icon}
           onDismiss={speed.dismissEncouragement}
+        />
+      )}
+
+      {/* Global barcode scan popup */}
+      {scanPopup && (
+        <ScanPopup
+          pkg={scanPopup.pkg}
+          barcode={scanPopup.barcode}
+          errorMessage={scanPopup.errorMessage}
+          animals={app.animals}
+          boxes={app.boxes}
+          onVoid={handleVoidPackage}
+          onDismiss={() => setScanPopup(null)}
         />
       )}
 
