@@ -5,7 +5,12 @@
  *
  * Optional rows: numbers (0-9) and symbols (@, ., -, etc.)
  * controlled via props for context-specific keyboards.
+ *
+ * Shift toggle: tap the ⇧ button to switch between upper and lower case.
+ * Keyboard defaults to uppercase (matching physical keyboard behavior).
  */
+
+import { useState } from "react";
 
 interface OnScreenKeyboardProps {
   onKey: (char: string) => void;
@@ -48,6 +53,18 @@ const SYMBOL_STYLE = {
   color: "#a0c0ff",
 } as const;
 
+const SHIFT_STYLE = {
+  background: "linear-gradient(180deg, #2a3a4a, #1e2e3e)",
+  boxShadow: "0 4px 0 0 #0e1a2a, 0 5px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)",
+  color: "#80c0ff",
+} as const;
+
+const SHIFT_ACTIVE_STYLE = {
+  background: "linear-gradient(180deg, #3a4a5a, #2e3e4e)",
+  boxShadow: "0 2px 0 0 #0e1a2a, 0 3px 6px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.12)",
+  color: "#00d4ff",
+} as const;
+
 const KEY_HEIGHT = "72px";
 const LEDGE_HEIGHT = "4px";
 
@@ -58,6 +75,8 @@ export function OnScreenKeyboard({
   showNumbers = false,
   showSymbols = false,
 }: OnScreenKeyboardProps) {
+  const [isUpper, setIsUpper] = useState(true);
+
   return (
     <div className="flex flex-col gap-3 select-none w-full">
       {/* Number row (optional) */}
@@ -89,26 +108,29 @@ export function OnScreenKeyboard({
       {/* Letter rows */}
       {LETTER_ROWS.map((row, ri) => (
         <div key={ri} className="flex gap-2 justify-center">
-          {row.map(char => (
-            <button
-              key={char}
-              onClick={() => onKey(char)}
-              className="game-btn rounded-xl font-bold relative overflow-hidden flex-1"
-              style={{
-                ...KEY_STYLE,
-                height: KEY_HEIGHT,
-                fontSize: "22px",
-                letterSpacing: "0.05em",
-                maxWidth: "120px",
-              }}
-            >
-              <div
-                className="game-btn-ledge"
-                style={{ height: LEDGE_HEIGHT, background: "#141428", borderRadius: "0 0 12px 12px" }}
-              />
-              <span className="relative z-10">{char}</span>
-            </button>
-          ))}
+          {row.map(char => {
+            const display = isUpper ? char : char.toLowerCase();
+            return (
+              <button
+                key={char}
+                onClick={() => onKey(display)}
+                className="game-btn rounded-xl font-bold relative overflow-hidden flex-1"
+                style={{
+                  ...KEY_STYLE,
+                  height: KEY_HEIGHT,
+                  fontSize: "22px",
+                  letterSpacing: "0.05em",
+                  maxWidth: "120px",
+                }}
+              >
+                <div
+                  className="game-btn-ledge"
+                  style={{ height: LEDGE_HEIGHT, background: "#141428", borderRadius: "0 0 12px 12px" }}
+                />
+                <span className="relative z-10">{display}</span>
+              </button>
+            );
+          })}
         </div>
       ))}
 
@@ -137,14 +159,31 @@ export function OnScreenKeyboard({
         </div>
       )}
 
-      {/* Bottom row: Backspace, Space, Clear */}
+      {/* Bottom row: Shift, Backspace, Space, Clear */}
       <div className="flex gap-2 justify-center">
+        <button
+          onClick={() => setIsUpper(prev => !prev)}
+          className="game-btn rounded-xl font-bold relative overflow-hidden"
+          style={{
+            ...(isUpper ? SHIFT_ACTIVE_STYLE : SHIFT_STYLE),
+            width: "120px",
+            height: KEY_HEIGHT,
+            fontSize: "22px",
+          }}
+        >
+          <div
+            className="game-btn-ledge"
+            style={{ height: LEDGE_HEIGHT, background: "#0e1a2a", borderRadius: "0 0 12px 12px" }}
+          />
+          <span className="relative z-10">{isUpper ? "A" : "a"}</span>
+        </button>
+
         <button
           onClick={onBackspace}
           className="game-btn rounded-xl font-bold relative overflow-hidden"
           style={{
             ...ACTION_STYLE,
-            width: "180px",
+            width: "150px",
             height: KEY_HEIGHT,
             fontSize: "18px",
             letterSpacing: "0.08em",
@@ -165,7 +204,7 @@ export function OnScreenKeyboard({
             height: KEY_HEIGHT,
             fontSize: "18px",
             letterSpacing: "0.08em",
-            maxWidth: "480px",
+            maxWidth: "400px",
           }}
         >
           <div
@@ -180,7 +219,7 @@ export function OnScreenKeyboard({
           className="game-btn rounded-xl font-bold relative overflow-hidden"
           style={{
             ...CLEAR_STYLE,
-            width: "180px",
+            width: "150px",
             height: KEY_HEIGHT,
             fontSize: "18px",
             letterSpacing: "0.08em",
