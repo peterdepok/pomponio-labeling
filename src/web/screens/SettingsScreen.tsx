@@ -425,6 +425,29 @@ export function SettingsScreen({
       const data = await res.json();
       if (data.ok) {
         setUpdateStatus("restarting");
+        // Poll /api/health until Flask comes back, then hard-reload.
+        // The server exits ~2s after responding; the watchdog relaunches
+        // it within ~7s. We poll every 2s for up to 60s.
+        const deadline = Date.now() + 60_000;
+        const poll = async () => {
+          while (Date.now() < deadline) {
+            await new Promise(r => setTimeout(r, 2000));
+            try {
+              const health = await fetch("/api/health", { signal: AbortSignal.timeout(2000) });
+              if (health.ok) {
+                // Server is back; hard-reload to pick up new bundle
+                window.location.reload();
+                return;
+              }
+            } catch {
+              // Server still down; keep polling
+            }
+          }
+          // Timed out; reload anyway in case the server came back
+          // between our last poll and now
+          window.location.reload();
+        };
+        poll();
       } else {
         showToast(`Update failed: ${data.error || "unknown"}`, "error");
         setUpdateStatus("idle");
