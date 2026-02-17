@@ -161,24 +161,27 @@ def schedule_restart(delay: float = 2.0) -> None:
     """Schedule a process restart after a short delay.
 
     The delay allows the HTTP response to complete before the process
-    replaces itself. On Unix, uses os.execv to atomically replace the
-    process. On Windows, spawns a new process then exits.
+    exits. On both platforms, the process simply terminates and relies
+    on the external watchdog (start_kiosk.bat on Windows, systemd or
+    similar on Unix) to relaunch it.
+
+    On Unix without a watchdog, os.execv replaces the process in place
+    as a fallback.
     """
     def _restart():
         time.sleep(delay)
         logger.info("Restarting application...")
 
-        entry_point = os.path.join(PROJECT_ROOT, "run_production.py")
-
         if sys.platform == "win32":
-            # Windows: spawn new process, then exit current
-            subprocess.Popen(
-                [sys.executable, entry_point],
-                cwd=PROJECT_ROOT,
-            )
+            # Exit cleanly; the watchdog loop in start_kiosk.bat will
+            # detect the exit and relaunch run_production.py.
+            # Do NOT spawn a child process here: that orphans it
+            # outside the watchdog and breaks recovery on next reboot.
+            logger.info("Exiting for watchdog relaunch (code 0)")
             os._exit(0)
         else:
             # Unix: replace current process in place
+            entry_point = os.path.join(PROJECT_ROOT, "run_production.py")
             os.execv(sys.executable, [sys.executable, entry_point])
 
     t = threading.Thread(target=_restart, daemon=True, name="updater-restart")
