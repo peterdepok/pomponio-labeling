@@ -19,6 +19,7 @@ import ctypes
 import json
 import logging
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -502,24 +503,39 @@ def api_shutdown():
     """Terminate the kiosk process and Chrome cleanly.
 
     Called by the frontend Exit handler after the shift report is sent.
-    Kills the Chrome browser process first (since os._exit skips atexit
-    handlers), then exits with code 42 so the watchdog knows this was
-    intentional and does not relaunch the app.
+    Kills the Chrome browser process tree first (since os._exit skips
+    atexit handlers), then exits with code 42 so the watchdog knows
+    this was intentional and does not relaunch the app.
+
+    On Windows, uses ``taskkill /T /F /PID`` to kill the entire Chrome
+    process tree (parent + GPU process + renderer + crashpad), preventing
+    orphaned child processes that accumulate across restart cycles.
     """
     logger.info("Shutdown requested by operator")
 
     def _shutdown():
-        time.sleep(0.5)  # let the HTTP 200 flush
+        time.sleep(0.3)  # brief pause to let the HTTP 200 flush
 
-        # Kill Chrome before exiting. os._exit() skips atexit handlers,
-        # so the cleanup registered in run_production.py would not fire.
+        # Kill Chrome process tree before exiting.
         try:
             import run_production
             proc = run_production.browser_process
             if proc and proc.poll() is None:
-                logger.info("Terminating browser process (pid %d)", proc.pid)
-                proc.terminate()
-                proc.wait(timeout=5)
+                pid = proc.pid
+                logger.info("Killing browser process tree (pid %d)", pid)
+                if sys.platform == "win32":
+                    # /T = kill child processes, /F = force
+                    subprocess.run(
+                        ["taskkill", "/T", "/F", "/PID", str(pid)],
+                        timeout=10, capture_output=True,
+                    )
+                else:
+                    proc.terminate()
+                try:
+                    proc.wait(timeout=3)
+                except Exception:
+                    proc.kill()
+                logger.info("Browser process tree terminated")
         except Exception as e:
             logger.warning("Browser cleanup failed: %s", e)
 

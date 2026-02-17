@@ -102,20 +102,11 @@ export function OperatorGateModal({ isOpen, onConfirm }: OperatorGateModalProps)
                 <button
                   key={name}
                   onClick={() => handleSelect(name)}
-                  className="w-full h-14 rounded-xl text-lg font-semibold text-[#e8e8e8] transition-colors"
+                  className="w-full h-14 rounded-xl text-lg font-semibold text-[#e8e8e8] transition-transform active:scale-[0.97]"
                   style={{
                     background: "linear-gradient(145deg, #1a2040, #161630)",
                     border: "1px solid #2a2a4a",
                     boxShadow: "0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)",
-                  }}
-                  onMouseDown={e => {
-                    (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.97)";
-                  }}
-                  onMouseUp={e => {
-                    (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
                   }}
                 >
                   {name}

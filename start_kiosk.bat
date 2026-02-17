@@ -89,10 +89,15 @@ set EXIT_CODE=%ERRORLEVEL%
 REM --- Exit code 42 = operator pressed Exit. Stop the watchdog. ---
 if %EXIT_CODE% EQU 42 (
     echo [%date% %time%] Operator shutdown (exit code 42^). Watchdog stopping. >> kiosk.log
+    REM Kill any orphaned Chrome processes using the kiosk profile
+    taskkill /F /IM chrome.exe >nul 2>&1
     exit /b 0
 )
 
 echo [%date% %time%] Process exited (code %EXIT_CODE%^). Waiting 5s before restart... >> kiosk.log
 set /a RESTART_COUNT=%RESTART_COUNT%+1
+
+REM Kill orphaned Chrome processes before relaunch to prevent profile lock
+taskkill /F /IM chrome.exe >nul 2>&1
 timeout /t 5 /nobreak >nul
 goto loop

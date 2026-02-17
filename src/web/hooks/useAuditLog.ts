@@ -1,10 +1,24 @@
 /**
- * Audit log hook: typed event tracking with localStorage persistence.
+ * Audit log hook: typed event tracking with localStorage persistence
+ * and confirmed server-side sync.
+ *
+ * Every audit event is:
+ *   1. Written synchronously to localStorage (immediate, survives page refresh)
+ *   2. POSTed to /api/audit on the Flask server (durable, survives browser reset)
+ *
+ * If the server POST fails, the event is added to a localStorage retry queue.
+ * The retry queue is drained on the next successful POST. This guarantees
+ * eventual delivery to the server-side log as long as the Flask bridge is
+ * reachable at some point before localStorage is cleared.
+ *
+ * Exposes `auditSyncOk` boolean: false when the retry queue has entries,
+ * meaning the server-side log is behind. The UI renders a warning banner.
+ *
  * FIFO eviction at configurable max entries. Events are written synchronously
  * inside the state updater to guarantee persistence even on abrupt page close.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 // --- Event types ---
 
@@ -92,7 +106,9 @@ export interface AuditEntry {
 // --- Storage helpers ---
 
 const AUDIT_KEY = "pomponio_audit_log";
+const AUDIT_RETRY_KEY = "pomponio_audit_retry";
 const DEFAULT_MAX_ENTRIES = 5000;
+const MAX_RETRY_QUEUE = 200; // cap retry queue to prevent runaway growth
 
 function readLog(): AuditEntry[] {
   try {
@@ -106,6 +122,65 @@ function writeLog(entries: AuditEntry[]): void {
   localStorage.setItem(AUDIT_KEY, JSON.stringify(entries));
 }
 
+function readRetryQueue(): AuditEntry[] {
+  try {
+    return JSON.parse(localStorage.getItem(AUDIT_RETRY_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function writeRetryQueue(entries: AuditEntry[]): void {
+  // Cap at MAX_RETRY_QUEUE, dropping oldest if exceeded
+  const capped = entries.length > MAX_RETRY_QUEUE
+    ? entries.slice(entries.length - MAX_RETRY_QUEUE)
+    : entries;
+  localStorage.setItem(AUDIT_RETRY_KEY, JSON.stringify(capped));
+}
+
+/**
+ * POST an audit entry to the server. Returns true on confirmed
+ * persistence, false on any failure.
+ */
+async function sendToServer(entry: AuditEntry): Promise<boolean> {
+  try {
+    const res = await fetch("/api/audit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(entry),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data.ok === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Attempt to drain the retry queue. Sends entries one at a time,
+ * stopping on first failure. Returns the number of entries remaining.
+ */
+async function drainRetryQueue(): Promise<number> {
+  const queue = readRetryQueue();
+  if (queue.length === 0) return 0;
+
+  let sent = 0;
+  for (const entry of queue) {
+    const ok = await sendToServer(entry);
+    if (!ok) break; // stop on first failure; server is likely down
+    sent++;
+  }
+
+  if (sent > 0) {
+    const remaining = queue.slice(sent);
+    writeRetryQueue(remaining);
+    return remaining.length;
+  }
+  return queue.length;
+}
+
 // --- Hook ---
 
 export type LogEventFn = <T extends AuditEventType>(
@@ -117,6 +192,8 @@ export interface UseAuditLogReturn {
   entries: AuditEntry[];
   logEvent: LogEventFn;
   clearLog: () => void;
+  /** False when retry queue has entries (server-side log is behind). */
+  auditSyncOk: boolean;
 }
 
 export function useAuditLog(
@@ -124,6 +201,28 @@ export function useAuditLog(
   operatorName?: string,
 ): UseAuditLogReturn {
   const [entries, setEntries] = useState<AuditEntry[]>(readLog);
+  const [auditSyncOk, setAuditSyncOk] = useState(
+    () => readRetryQueue().length === 0
+  );
+
+  // Ref to prevent concurrent drain operations
+  const drainingRef = useRef(false);
+
+  // Periodic retry: drain the queue every 30 seconds
+  useEffect(() => {
+    const timer = setInterval(async () => {
+      if (drainingRef.current) return;
+      drainingRef.current = true;
+      try {
+        const remaining = await drainRetryQueue();
+        setAuditSyncOk(remaining === 0);
+      } finally {
+        drainingRef.current = false;
+      }
+    }, 30_000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   const logEvent = useCallback(<T extends AuditEventType>(
     eventType: T,
@@ -137,21 +236,37 @@ export function useAuditLog(
         ...(operatorName ? { operator: operatorName } : {}),
       } as AuditPayloads[T],
     };
-    // Persist to server-side audit log (fire-and-forget)
-    fetch("/api/audit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(entry),
-    }).catch(() => {}); // Swallow errors; localStorage is the primary store
+
+    // 1. Persist to localStorage immediately (synchronous, survives page refresh)
     setEntries(prev => {
       const updated = [...prev, entry];
-      // FIFO eviction: keep only the most recent maxEntries
       const trimmed = updated.length > maxEntries
         ? updated.slice(updated.length - maxEntries)
         : updated;
-      // Write synchronously to guarantee persistence
       writeLog(trimmed);
       return trimmed;
+    });
+
+    // 2. POST to server; on failure, queue for retry
+    sendToServer(entry).then(async (ok) => {
+      if (ok) {
+        // Server confirmed. Try to drain any backlog.
+        if (!drainingRef.current) {
+          drainingRef.current = true;
+          try {
+            const remaining = await drainRetryQueue();
+            setAuditSyncOk(remaining === 0);
+          } finally {
+            drainingRef.current = false;
+          }
+        }
+      } else {
+        // Server did not confirm. Queue for retry.
+        const queue = readRetryQueue();
+        queue.push(entry);
+        writeRetryQueue(queue);
+        setAuditSyncOk(false);
+      }
     });
   }, [maxEntries, operatorName]);
 
@@ -160,5 +275,5 @@ export function useAuditLog(
     setEntries([]);
   }, []);
 
-  return { entries, logEvent, clearLog };
+  return { entries, logEvent, clearLog, auditSyncOk };
 }

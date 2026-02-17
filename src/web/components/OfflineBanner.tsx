@@ -86,7 +86,7 @@ export function OfflineBanner() {
             top: 0,
             left: 0,
             right: 0,
-            zIndex: 9997,
+            zIndex: 9996,
             background: "linear-gradient(90deg, #f57f17, #fbc02d)",
             color: "#212121",
             textAlign: "center",

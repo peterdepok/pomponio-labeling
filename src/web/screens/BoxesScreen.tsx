@@ -49,6 +49,7 @@ export function BoxesScreen({
   logEvent,
 }: BoxesScreenProps) {
   const [flow, setFlow] = useState<BoxFlow>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   if (currentAnimalId === null) {
     return (
@@ -75,7 +76,8 @@ export function BoxesScreen({
   };
 
   const handlePrintAndClose = () => {
-    if (!flow || flow.step !== "close-preview") return;
+    if (!flow || flow.step !== "close-preview" || isPrinting) return;
+    setIsPrinting(true);
     const box = animalBoxes.find(b => b.id === flow.boxId);
     logEvent("box_labels_printed", {
       boxId: flow.boxId,
@@ -86,6 +88,7 @@ export function BoxesScreen({
     showToast(`Printing ${flow.labels.length} box label${flow.labels.length !== 1 ? "s" : ""}...`);
     onCloseBox(flow.boxId);
     setFlow(null);
+    setIsPrinting(false);
   };
 
   // --- Reprint flow handlers ---
@@ -101,7 +104,8 @@ export function BoxesScreen({
   };
 
   const handleReprintConfirm = () => {
-    if (!flow || flow.step !== "reprint-preview") return;
+    if (!flow || flow.step !== "reprint-preview" || isPrinting) return;
+    setIsPrinting(true);
     const box = animalBoxes.find(b => b.id === flow.boxId);
     logEvent("box_labels_reprinted", {
       boxId: flow.boxId,
@@ -111,6 +115,7 @@ export function BoxesScreen({
     printLabels(flow.labels);
     showToast(`Reprinting ${flow.labels.length} box label${flow.labels.length !== 1 ? "s" : ""}...`);
     setFlow(null);
+    setIsPrinting(false);
   };
 
   // --- Shared print utility ---

@@ -57,6 +57,7 @@ function App() {
   const app = useAppState();
   const { settings, setSetting, resetToDefaults } = useSettings();
   const audit = useAuditLog(undefined, settings.operatorName || undefined);
+  const { auditSyncOk } = audit;
   const speed = useSpeedTracker({ threshold: 4 });
 
   // Auto-email shift report after 2 hours of inactivity (safety net)
@@ -102,9 +103,15 @@ function App() {
     audit.logEvent("operator_shift_started", { operatorName: name });
   }, [setSetting, audit]);
 
-  // Change operator mid-shift: logs the switch and clears operator name,
-  // which automatically reopens OperatorGateModal (gated on !operatorName).
+  // Change operator mid-shift: confirmation prevents accidental tap.
+  const [showOperatorConfirm, setShowOperatorConfirm] = useState(false);
+
   const handleChangeOperator = useCallback(() => {
+    setShowOperatorConfirm(true);
+  }, []);
+
+  const handleConfirmOperatorChange = useCallback(() => {
+    setShowOperatorConfirm(false);
     const oldName = settings.operatorName;
     if (oldName) {
       audit.logEvent("operator_changed", { oldName, newName: "" });
@@ -141,6 +148,14 @@ function App() {
     enabled: activeTab !== "Scanner",
     onScan: handleGlobalScan,
   });
+
+  // Dismiss speed popup when operator switches tabs (prevents overlay blocking UI)
+  useEffect(() => {
+    if (speed.shouldShowEncouragement) {
+      speed.dismissEncouragement();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // Stable random message for speed popup (pick new on each show)
   const speedMsgRef = useRef({ message: "", icon: "" });
@@ -277,57 +292,51 @@ function App() {
     }
   }, [app, audit]);
 
+  const [isShuttingDown, setIsShuttingDown] = useState(false);
+
   const handleExitConfirm = useCallback(async () => {
     setShowExitConfirm(false);
+    setIsShuttingDown(true);
     audit.logEvent("app_exit_initiated", {});
 
-    // Send shift report (production data + audit log) if there is data.
-    // Wrapped in try/catch so the exit always proceeds even if email fails.
-    if (app.animals.length > 0) {
-      try {
-        await sendDailyReport({
-          animals: app.animals,
-          boxes: app.boxes,
-          packages: app.packages,
-          emailRecipient: settings.emailRecipient,
-          operatorName: settings.operatorName,
-          logEvent: audit.logEvent,
-          showToast: app.showToast,
-          auditEntries: audit.entries,
-        });
-      } catch (err) {
-        console.error("Shift report failed, proceeding with exit:", err);
-        app.showToast("Shift report failed to send. Exiting anyway.");
-      }
+    // Fire shift report in background (do NOT await; exit must never hang
+    // on a 30-second email timeout). The email will be queued for retry
+    // on the server side if delivery fails.
+    if (app.animals.length > 0 && settings.emailRecipient) {
+      sendDailyReport({
+        animals: app.animals,
+        boxes: app.boxes,
+        packages: app.packages,
+        emailRecipient: settings.emailRecipient,
+        operatorName: settings.operatorName,
+        logEvent: audit.logEvent,
+        showToast: app.showToast,
+        auditEntries: audit.entries,
+      }).catch(() => { /* queued for retry by server */ });
     }
 
     // Clear operator so the gate re-appears on next launch.
-    // Production data (animals, boxes, packages) and audit log are
-    // intentionally preserved across restarts so the day shift is not lost.
-    // Data is cleaned up naturally when animals are closed and purged.
     setSetting("operatorName", "");
 
-    // Small delay to let final writes flush to localStorage
-    await new Promise(r => setTimeout(r, 100));
+    // Brief pause to let final writes flush to localStorage
+    await new Promise(r => setTimeout(r, 200));
 
-    // Tell the server to shut down. The /api/shutdown endpoint calls
-    // os._exit(42), which the watchdog recognises as an intentional
-    // operator exit and does NOT relaunch.
+    // Tell the server to shut down with a 5-second timeout. The
+    // /api/shutdown endpoint kills the Chrome process tree and calls
+    // os._exit(42), which the watchdog recognises as intentional.
     try {
-      await fetch("/api/shutdown", { method: "POST" });
+      await fetch("/api/shutdown", {
+        method: "POST",
+        signal: AbortSignal.timeout(5000),
+      });
     } catch {
-      // Server may already be down; proceed to close Chrome anyway
+      // Server may be down or timed out. The shutdown thread on the
+      // server side is already running; Chrome will be killed shortly.
     }
 
-    // Give the server a moment to flush the response, then close Chrome.
-    // window.close() often fails in kiosk mode; about:blank is fallback.
-    await new Promise(r => setTimeout(r, 300));
-    try {
-      window.close();
-    } catch { /* browser may block */ }
-    setTimeout(() => {
-      window.location.href = "about:blank";
-    }, 500);
+    // The server kills Chrome from the backend (taskkill /T /F /PID on
+    // Windows). No need for window.close() or about:blank; the browser
+    // process will be terminated by the server within seconds.
   }, [app, settings, audit]);
 
   return (
@@ -352,6 +361,27 @@ function App() {
           }}
         >
           STORAGE WARNING -- Browser storage is full. Data may not be saved. Close and reopen the current animal to free space.
+        </div>
+      )}
+      {!auditSyncOk && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 9997,
+            background: "linear-gradient(90deg, #4a148c, #7b1fa2)",
+            color: "#ffffff",
+            textAlign: "center",
+            padding: "8px 16px",
+            fontSize: 13,
+            fontWeight: 700,
+            letterSpacing: "0.03em",
+            boxShadow: "0 2px 8px rgba(74, 20, 140, 0.5)",
+          }}
+        >
+          AUDIT SYNC -- Some audit events have not reached the server. They will retry automatically.
         </div>
       )}
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} onExit={() => setShowExitConfirm(true)} />
@@ -501,11 +531,63 @@ function App() {
         />
       )}
 
+      {/* Change operator confirmation */}
+      {showOperatorConfirm && (
+        <ConfirmDialog
+          title="Change Operator"
+          message={`Log out ${settings.operatorName || "current operator"}?`}
+          confirmText="Change"
+          onConfirm={handleConfirmOperatorChange}
+          onCancel={() => setShowOperatorConfirm(false)}
+        />
+      )}
+
       {/* Operator identification gate */}
       <OperatorGateModal
         isOpen={!settings.operatorName}
         onConfirm={handleOperatorConfirm}
       />
+
+      {/* Full-screen shutdown overlay (inline styles survive broken CSS pipeline) */}
+      {isShuttingDown && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10000,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#0d0d1a",
+          }}
+        >
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              border: "4px solid #2a2a4a",
+              borderTopColor: "#00d4ff",
+              borderRadius: "50%",
+              animation: "spin 1s linear infinite",
+            }}
+          />
+          <p
+            style={{
+              marginTop: 24,
+              fontSize: 24,
+              fontWeight: 700,
+              color: "#e8e8e8",
+              letterSpacing: "0.05em",
+            }}
+          >
+            Shutting Down...
+          </p>
+          <p style={{ marginTop: 8, fontSize: 14, color: "#606080" }}>
+            Sending report and closing. Please wait.
+          </p>
+        </div>
+      )}
 
       {/* Floating toast */}
       {app.toast && (

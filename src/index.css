@@ -171,6 +171,10 @@ body {
   50%      { transform: scaleY(1.3); opacity: 0.8; }
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ----------------------------------------------------------------
    Game-style button system
    Shared by ProductButton, TouchButton, category tabs
@@ -183,9 +187,15 @@ body {
   transform: translateY(0);
 }
 
-.game-btn:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.08);
+/* Hover effect is intentionally removed: kiosk is touchscreen-only.
+   On touch devices, :hover sticks after tap and creates confusing
+   "ghost hover" visual state. The :active state below provides
+   correct press feedback for touch input. */
+@media (hover: hover) and (pointer: fine) {
+  .game-btn:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.08);
+  }
 }
 
 .game-btn:active {

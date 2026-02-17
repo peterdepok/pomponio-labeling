@@ -223,7 +223,7 @@ export function AnimalsScreen({
           {/* Email config indicator (read-only, links to Settings) */}
           <button
             onClick={onNavigateToSettings}
-            className="text-xs text-[#606080] hover:text-[#a0a0b0] mt-1 text-left"
+            className="text-sm text-[#606080] active:text-[#a0a0b0] mt-1 text-left min-h-[44px] flex items-center"
             style={{ background: "none", border: "none", cursor: "pointer" }}
           >
             {emailRecipient
