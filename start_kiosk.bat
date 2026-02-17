@@ -61,6 +61,17 @@ set MAX_RESTARTS=10
 
 :loop
 
+REM --- Kill any process still holding port 8000 ---
+REM   After os._exit(42), the Python process is dead but the TCP socket
+REM   may linger in TIME_WAIT. If a zombie python.exe is holding the port
+REM   (e.g., from a partial crash), kill it outright. Uses netstat + findstr
+REM   to locate the PID, then taskkill to terminate it. Errors are ignored
+REM   (port may already be free).
+for /f "tokens=5" %%P in ('netstat -aon ^| findstr ":8000.*LISTENING" 2^>nul') do (
+    echo [%date% %time%] Killing leftover process on port 8000 ^(PID %%P^) >> kiosk.log
+    taskkill /F /PID %%P >nul 2>&1
+)
+
 REM --- Log rotation: keep kiosk.log under 10 MB ---
 REM   If the file exceeds 10 485 760 bytes, archive the old log with
 REM   a timestamp suffix and start fresh. Uses wmic for a locale-
@@ -99,7 +110,10 @@ if %EXIT_CODE% EQU 42 (
 echo [%date% %time%] Process exited (code %EXIT_CODE%^). Waiting 5s before restart... >> kiosk.log
 set /a RESTART_COUNT=%RESTART_COUNT%+1
 
-REM Kill orphaned Chrome processes before relaunch to prevent profile lock
+REM Kill orphaned Chrome and any process on port 8000 before relaunch
 taskkill /F /IM chrome.exe >nul 2>&1
+for /f "tokens=5" %%P in ('netstat -aon ^| findstr ":8000.*LISTENING" 2^>nul') do (
+    taskkill /F /PID %%P >nul 2>&1
+)
 timeout /t 5 /nobreak >nul
 goto loop

@@ -21,6 +21,15 @@ sys.path.insert(0, PROJECT_ROOT)
 PORT = 8000
 URL = f"http://localhost:{PORT}"
 
+# Local boot page that polls /api/health before redirecting to the app.
+# Chrome loads this as file:// instantly (no server needed), eliminating
+# the ERR_CONNECTION_REFUSED race condition on restart.
+BOOT_HTML = os.path.join(PROJECT_ROOT, "boot.html")
+# On Windows: C:\pomponio-labeling\boot.html -> file:///C:/pomponio-labeling/boot.html
+# On Linux/Mac: /home/user/project/boot.html -> file:///home/user/project/boot.html
+_boot_path = BOOT_HTML.replace("\\", "/")
+BOOT_URL = f"file:///{_boot_path}" if not _boot_path.startswith("/") else f"file://{_boot_path}"
+
 # Isolated Chrome profile so kiosk runs as its own process (not delegated
 # to an existing Chrome/Edge instance). Stored inside the project directory.
 KIOSK_PROFILE_DIR = os.path.join(PROJECT_ROOT, ".kiosk-profile")
@@ -178,18 +187,24 @@ def main():
     _clean_chrome_locks(KIOSK_PROFILE_DIR)
 
     if browser:
+        # Use boot.html (local file) instead of localhost:8000 directly.
+        # boot.html polls /api/health and redirects once Flask responds.
+        # This prevents ERR_CONNECTION_REFUSED if Chrome wins the race.
+        launch_url = BOOT_URL if os.path.isfile(BOOT_HTML) else URL
         print(f"Launching kiosk browser: {browser}")
+        print(f"  URL: {launch_url}")
         browser_proc = subprocess.Popen([
             browser,
             f"--user-data-dir={KIOSK_PROFILE_DIR}",
             "--kiosk",
             "--disable-restore-session-state",
+            "--disable-session-crashed-bubble",
             "--disable-infobars",
             "--no-first-run",
             "--disable-translate",
             "--disable-features=TranslateUI",
             "--autoplay-policy=no-user-gesture-required",
-            URL,
+            launch_url,
         ])
 
         # Store reference for /api/shutdown to use
