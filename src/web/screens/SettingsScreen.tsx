@@ -229,7 +229,7 @@ export function SettingsScreen({
   onClearAuditLog,
   logEvent,
 }: SettingsScreenProps) {
-  const [confirmAction, setConfirmAction] = useState<"reset" | "clear" | "clear-audit" | "update" | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"reset" | "clear" | "update" | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [keyboardField, setKeyboardField] = useState<"email" | "printer" | "comPort" | "maxWeight" | "operator" | null>(null);
 
@@ -240,6 +240,13 @@ export function SettingsScreen({
   const [emailTesting, setEmailTesting] = useState(false);
   const [scaleDetecting, setScaleDetecting] = useState(false);
   const storage = useStorageMonitor();
+
+  // Audit log: passcode gate for clearing, email picker for sending
+  const [showAuditPasscode, setShowAuditPasscode] = useState(false);
+  const [showAuditEmailPicker, setShowAuditEmailPicker] = useState(false);
+  const [showAuditEmailKeyboard, setShowAuditEmailKeyboard] = useState(false);
+  const [auditEmailSending, setAuditEmailSending] = useState(false);
+  const [recentAuditEmails, setRecentAuditEmails] = useState<string[]>([]);
 
   // Debounced email input
   const [emailDraft, setEmailDraft] = useState(settings.emailRecipient);
@@ -283,6 +290,98 @@ export function SettingsScreen({
     onClearAllData();
     setConfirmAction(null);
     showToast("All session data cleared.");
+  };
+
+  // --- Audit log: MRU email recipients ---
+
+  const AUDIT_EMAIL_KEY = "pomponio_recentAuditEmails";
+  const MAX_RECENT_EMAILS = 5;
+
+  const readRecentEmails = (): string[] => {
+    try {
+      const raw = localStorage.getItem(AUDIT_EMAIL_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter((e: unknown) => typeof e === "string" && e.length > 0) : [];
+    } catch { return []; }
+  };
+
+  const writeRecentEmails = (emails: string[]): void => {
+    localStorage.setItem(AUDIT_EMAIL_KEY, JSON.stringify(emails.slice(0, MAX_RECENT_EMAILS)));
+  };
+
+  const touchRecentEmail = (email: string): void => {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed) return;
+    const current = readRecentEmails();
+    const filtered = current.filter(e => e.toLowerCase() !== trimmed);
+    writeRecentEmails([trimmed, ...filtered]);
+  };
+
+  const handleOpenAuditEmail = () => {
+    setRecentAuditEmails(readRecentEmails());
+    setShowAuditEmailPicker(true);
+  };
+
+  const handleSendAuditEmail = async (recipient: string) => {
+    const trimmed = recipient.trim();
+    if (!trimmed || !trimmed.includes("@")) {
+      showToast("Please enter a valid email address.", "error");
+      return;
+    }
+
+    touchRecentEmail(trimmed);
+    setShowAuditEmailPicker(false);
+    setShowAuditEmailKeyboard(false);
+    setAuditEmailSending(true);
+
+    // Build CSV from audit entries
+    const headers = "timestamp,eventType,payload";
+    const rows = auditEntries.map(e =>
+      `"${e.timestamp}","${e.eventType}","${JSON.stringify(e.payload).replace(/"/g, '""')}"`
+    );
+    const csv = [headers, ...rows].join("\n");
+    const today = new Date().toISOString().slice(0, 10);
+
+    try {
+      const res = await fetch("/api/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: trimmed,
+          subject: `Pomponio Ranch Audit Log: ${today}`,
+          csvContent: csv,
+          filename: `audit_log_${today}.csv`,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        logEvent("audit_log_emailed", { recipient: trimmed, entryCount: auditEntries.length });
+        showToast(data.queued ? "Audit log queued for delivery." : "Audit log emailed.");
+      } else {
+        showToast(`Email failed: ${data.error || "unknown"}`, "error");
+      }
+    } catch {
+      showToast("Email failed: network error.", "error");
+    } finally {
+      setAuditEmailSending(false);
+    }
+  };
+
+  // --- Audit log: passcode gate for clearing ---
+
+  const AUDIT_CLEAR_PASSCODE = "3450";
+
+  const handleAuditPasscodeSubmit = (value: string) => {
+    if (value === AUDIT_CLEAR_PASSCODE) {
+      setShowAuditPasscode(false);
+      onClearAuditLog();
+      logEvent("audit_log_cleared", { entryCount: auditEntries.length });
+      showToast("Audit log cleared.");
+    } else {
+      showToast("Incorrect passcode.", "error");
+      setShowAuditPasscode(false);
+    }
   };
 
   const handleCopyDeviceId = () => {
@@ -686,13 +785,24 @@ export function SettingsScreen({
             <span className="text-sm text-[#a0a0b0]">
               {auditEntries.length} event{auditEntries.length !== 1 ? "s" : ""} recorded
             </span>
-            <TouchButton
-              text="Clear Audit Log"
-              style="danger"
-              size="sm"
-              onClick={() => setConfirmAction("clear-audit")}
-              width="180px"
-            />
+            <div className="flex gap-2">
+              <TouchButton
+                text={auditEmailSending ? "Sending..." : "Email Log"}
+                style="primary"
+                size="sm"
+                onClick={handleOpenAuditEmail}
+                width="140px"
+                disabled={auditEntries.length === 0 || auditEmailSending}
+              />
+              <TouchButton
+                text="Clear Log"
+                style="danger"
+                size="sm"
+                onClick={() => setShowAuditPasscode(true)}
+                width="130px"
+                disabled={auditEntries.length === 0}
+              />
+            </div>
           </div>
 
           {/* Scrollable log viewer, most recent first */}
@@ -807,19 +917,6 @@ export function SettingsScreen({
           onCancel={() => setConfirmAction(null)}
         />
       )}
-      {confirmAction === "clear-audit" && (
-        <ConfirmDialog
-          title="Clear Audit Log"
-          message="This will permanently remove all audit log entries. Session data will not be affected."
-          confirmText="Clear Audit Log"
-          onConfirm={() => {
-            onClearAuditLog();
-            setConfirmAction(null);
-            showToast("Audit log cleared.");
-          }}
-          onCancel={() => setConfirmAction(null)}
-        />
-      )}
       {confirmAction === "update" && (
         <ConfirmDialog
           title="Update Available"
@@ -905,6 +1002,120 @@ export function SettingsScreen({
         }}
         onCancel={() => setKeyboardField(null)}
       />
+
+      {/* Passcode gate for clearing audit log */}
+      <KeyboardModal
+        isOpen={showAuditPasscode}
+        title="Enter Passcode to Clear"
+        initialValue=""
+        placeholder="****"
+        onConfirm={handleAuditPasscodeSubmit}
+        onCancel={() => setShowAuditPasscode(false)}
+        showNumbers
+      />
+
+      {/* Email audit log: MRU recipient picker */}
+      {showAuditEmailPicker && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-[100]"
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.85)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+          }}
+        >
+          <div
+            className="max-w-md w-full mx-4 rounded-2xl overflow-hidden"
+            style={{
+              background: "linear-gradient(145deg, #1e2240, #141428)",
+              boxShadow: "0 8px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.06)",
+            }}
+          >
+            {/* Purple accent bar */}
+            <div
+              className="h-1"
+              style={{ background: "linear-gradient(90deg, #4a148c, #b197fc, #4a148c)" }}
+            />
+
+            <div className="p-8">
+              <h2 className="text-2xl font-bold text-[#e8e8e8] mb-2">Email Audit Log</h2>
+              <p className="text-sm text-[#606080] mb-6">
+                {auditEntries.length} events will be sent as a CSV attachment.
+              </p>
+
+              {/* Recent recipient buttons */}
+              {recentAuditEmails.length > 0 && (
+                <div className="space-y-3 mb-6">
+                  {recentAuditEmails.map(email => (
+                    <button
+                      key={email}
+                      onClick={() => handleSendAuditEmail(email)}
+                      className="w-full h-14 rounded-xl text-lg font-semibold text-[#e8e8e8] transition-colors"
+                      style={{
+                        background: "linear-gradient(145deg, #1a2040, #161630)",
+                        border: "1px solid #2a2a4a",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)",
+                      }}
+                      onMouseDown={e => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.97)";
+                      }}
+                      onMouseUp={e => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
+                      }}
+                    >
+                      {email}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Divider */}
+              {recentAuditEmails.length > 0 && (
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="flex-1 h-px bg-[#2a2a4a]" />
+                  <span className="text-xs text-[#606080] uppercase tracking-widest">or</span>
+                  <div className="flex-1 h-px bg-[#2a2a4a]" />
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <TouchButton
+                  text="Enter Email"
+                  style="primary"
+                  onClick={() => setShowAuditEmailKeyboard(true)}
+                  className="flex-1"
+                />
+                <TouchButton
+                  text="Cancel"
+                  style="danger"
+                  onClick={() => {
+                    setShowAuditEmailPicker(false);
+                    setShowAuditEmailKeyboard(false);
+                  }}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Keyboard modal for new email entry */}
+          <KeyboardModal
+            isOpen={showAuditEmailKeyboard}
+            title="Recipient Email"
+            initialValue={settings.emailRecipient || ""}
+            placeholder="name@example.com"
+            showSymbols
+            onConfirm={(val) => {
+              setShowAuditEmailKeyboard(false);
+              handleSendAuditEmail(val);
+            }}
+            onCancel={() => setShowAuditEmailKeyboard(false)}
+          />
+        </div>
+      )}
 
       {/* Full-screen overlay during update/restart */}
       {(updateStatus === "applying" || updateStatus === "restarting") && (

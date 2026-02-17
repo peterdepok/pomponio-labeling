@@ -39,7 +39,9 @@ export type AuditEventType =
   | "print_retry"
   | "print_cancel_after_failure"
   | "weight_override_forced"
-  | "weight_manual_entry";
+  | "weight_manual_entry"
+  | "audit_log_emailed"
+  | "audit_log_cleared";
 
 // --- Payload map (discriminated by eventType) ---
 
@@ -75,6 +77,8 @@ export interface AuditPayloads {
   print_cancel_after_failure: { sku: string | null; error: string | null };
   weight_override_forced: { weightLb: number; sku: string; productName: string };
   weight_manual_entry: { weightLb: number; sku: string; productName: string };
+  audit_log_emailed: { recipient: string; entryCount: number };
+  audit_log_cleared: { entryCount: number };
 }
 
 // --- Entry stored in localStorage ---
