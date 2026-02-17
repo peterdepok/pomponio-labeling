@@ -141,11 +141,6 @@ class Config:
         if not os.path.exists(self.config_path):
             warnings.append("config.ini not found; using defaults. Printer and scale settings may be wrong.")
 
-        # Printer name: default "zebra" is almost certainly wrong
-        pn = self.printer_name
-        if pn == DEFAULT_CONFIG["printer"]["name"]:
-            warnings.append(f"Printer name is still default (\"{pn}\"). Check Settings.")
-
         # Scale port: verify the COM port is plausible (COMn where n is a digit)
         sp = self.scale_port
         if not (sp.upper().startswith("COM") and sp[3:].isdigit()):
