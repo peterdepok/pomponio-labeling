@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 REM -----------------------------------------------------------
 REM  Pomponio Ranch Labeling System -- Kiosk Launcher
 REM
@@ -62,16 +63,17 @@ set MAX_RESTARTS=10
 
 REM --- Log rotation: keep kiosk.log under 10 MB ---
 REM   If the file exceeds 10 485 760 bytes, archive the old log with
-REM   a timestamp suffix and start fresh. This prevents unbounded disk
-REM   usage on a kiosk that runs for months.
+REM   a timestamp suffix and start fresh. Uses wmic for a locale-
+REM   independent timestamp (YYYYMMDDHHmmss) to avoid collisions.
+REM   Requires delayed expansion (set at top of script) so variables
+REM   set inside parenthesized blocks expand correctly.
 if exist kiosk.log (
     for %%A in (kiosk.log) do (
         if %%~zA GTR 10485760 (
-            set "STAMP=%date:~-4%%date:~4,2%%date:~7,2%_%time:~0,2%%time:~3,2%"
-            set "STAMP=%STAMP: =0%"
-            copy kiosk.log "kiosk_%STAMP%.log" >nul 2>&1
+            for /f "tokens=2 delims==" %%T in ('wmic os get localdatetime /value 2^>nul ^| find "="') do set "STAMP=%%T"
+            copy kiosk.log "kiosk_!STAMP:~0,14!.log" >nul 2>&1
             echo. > kiosk.log
-            echo [%date% %time%] Log rotated (exceeded 10 MB^). Previous log archived. >> kiosk.log
+            echo [%date% %time%] Log rotated ^(exceeded 10 MB^). Previous log archived. >> kiosk.log
         )
     )
 )

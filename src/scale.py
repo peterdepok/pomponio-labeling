@@ -106,7 +106,13 @@ class Scale:
             response = self._serial.read(50)  # read up to 50 bytes
             if not response:
                 raise ScaleError("No response from scale")
-            return self._parse_response(response.decode("ascii", errors="replace"))
+            decoded = response.decode("ascii", errors="replace")
+            # Validate frame completeness: Brecknell 6710U terminates with ETX (0x03).
+            # A partial frame (serial timeout mid-read) would lack ETX and yield
+            # garbled weight values. Reject and let the next poll retry.
+            if "\x03" not in decoded and len(response) < 10:
+                raise ScaleError(f"Incomplete frame ({len(response)} bytes): {decoded!r}")
+            return self._parse_response(decoded)
         except serial.SerialException as e:
             raise ScaleError(f"Scale communication error: {e}") from e
 

@@ -10,7 +10,7 @@
  * Keyboard defaults to uppercase (matching physical keyboard behavior).
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface OnScreenKeyboardProps {
   onKey: (char: string) => void;
@@ -18,6 +18,8 @@ interface OnScreenKeyboardProps {
   onClear: () => void;
   showNumbers?: boolean;
   showSymbols?: boolean;
+  /** When true, reset shift to uppercase. Toggled by parent on modal open. */
+  resetShift?: boolean;
 }
 
 const NUMBER_ROW = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
@@ -74,8 +76,14 @@ export function OnScreenKeyboard({
   onClear,
   showNumbers = false,
   showSymbols = false,
+  resetShift = false,
 }: OnScreenKeyboardProps) {
   const [isUpper, setIsUpper] = useState(true);
+
+  // Reset shift to uppercase when parent signals (modal re-open)
+  useEffect(() => {
+    if (resetShift) setIsUpper(true);
+  }, [resetShift]);
 
   return (
     <div className="flex flex-col gap-3 select-none w-full">

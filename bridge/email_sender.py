@@ -14,7 +14,7 @@ import urllib.error
 logger = logging.getLogger(__name__)
 
 RESEND_API_URL = "https://api.resend.com/emails"
-RESEND_TIMEOUT = 30  # seconds
+RESEND_TIMEOUT = 10  # seconds (30s was too long; blocks the request thread)
 
 
 def send_email(config, to: str, subject: str, csv_content: str, filename: str,

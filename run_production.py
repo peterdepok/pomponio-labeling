@@ -161,7 +161,7 @@ def main():
     print("Press Ctrl+C to stop the server.")
     try:
         while True:
-            time.sleep(2)
+            time.sleep(0.5)  # check every 500ms (was 2s, too slow for kiosk)
             if not flask_thread.is_alive():
                 print("FATAL: Flask thread died unexpectedly. Exiting for watchdog restart.")
                 sys.exit(1)

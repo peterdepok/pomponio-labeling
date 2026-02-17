@@ -41,14 +41,19 @@ export function KeyboardModal({
   // Signal to barcode scanner that a keyboard modal is open. The scanner
   // hook checks for this attribute to avoid capturing keystrokes meant
   // for the on-screen keyboard (which fires synthetic key events).
+  // Also lock body scroll to prevent background content from moving
+  // on touch devices when the modal overlay is swiped.
   useEffect(() => {
     if (isOpen) {
       document.body.setAttribute("data-keyboard-modal-open", "true");
+      document.body.style.overflow = "hidden";
     } else {
       document.body.removeAttribute("data-keyboard-modal-open");
+      document.body.style.overflow = "";
     }
     return () => {
       document.body.removeAttribute("data-keyboard-modal-open");
+      document.body.style.overflow = "";
     };
   }, [isOpen]);
 
@@ -118,6 +123,7 @@ export function KeyboardModal({
             onClear={handleClear}
             showNumbers={showNumbers}
             showSymbols={showSymbols}
+            resetShift={isOpen}
           />
 
           {/* Confirm / Cancel */}

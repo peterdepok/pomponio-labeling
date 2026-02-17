@@ -96,7 +96,7 @@ def scale_poll_loop() -> None:
             try:
                 scale.connect()
                 logger.info("Scale connected on %s", scale.port)
-                consecutive_errors = 0
+                consecutive_errors = 0  # reset backoff on successful reconnect
                 with scale_lock:
                     latest_reading["error"] = None
             except ScaleError as e:
@@ -519,7 +519,7 @@ def api_shutdown():
     logger.info("Shutdown requested by operator")
 
     def _shutdown():
-        time.sleep(0.3)  # brief pause to let the HTTP 200 flush
+        time.sleep(1.0)  # pause to let the HTTP 200 flush (0.3s was too tight on Beelink)
 
         # Kill Chrome process tree before exiting.
         try:

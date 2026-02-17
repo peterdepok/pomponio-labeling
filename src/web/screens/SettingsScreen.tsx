@@ -234,7 +234,7 @@ export function SettingsScreen({
   const [keyboardField, setKeyboardField] = useState<"email" | "printer" | "comPort" | "maxWeight" | "operator" | null>(null);
 
   // Update flow state
-  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "applying" | "restarting">("idle");
+  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "applying" | "restarting" | "stale">("idle");
   const [updateInfo, setUpdateInfo] = useState<{ commitsBehind: number; summary: string } | null>(null);
 
   const [emailTesting, setEmailTesting] = useState(false);
@@ -443,9 +443,8 @@ export function SettingsScreen({
               // Server still down; keep polling
             }
           }
-          // Timed out; reload anyway in case the server came back
-          // between our last poll and now
-          window.location.reload();
+          // Timed out waiting for server to come back; show recovery UI
+          setUpdateStatus("stale");
         };
         poll();
       } else {
@@ -1131,25 +1130,73 @@ export function SettingsScreen({
         </div>
       )}
 
-      {/* Full-screen overlay during update/restart */}
-      {(updateStatus === "applying" || updateStatus === "restarting") && (
+      {/* Full-screen overlay during update/restart/stale */}
+      {(updateStatus === "applying" || updateStatus === "restarting" || updateStatus === "stale") && (
         <div
           className="fixed inset-0 z-50 flex flex-col items-center justify-center"
           style={{ background: "rgba(13, 13, 26, 0.95)" }}
         >
-          <div
-            className="w-12 h-12 rounded-full mb-6 animate-spin"
-            style={{
-              border: "3px solid #2a2a4a",
-              borderTopColor: updateStatus === "restarting" ? "#51cf66" : "#00d4ff",
-            }}
-          />
-          <div className="text-xl font-bold text-[#e8e8e8] mb-2">
-            {updateStatus === "restarting" ? "Restarting..." : "Updating..."}
-          </div>
-          <div className="text-sm text-[#606080]">
-            Do not power off the device.
-          </div>
+          {updateStatus === "stale" ? (
+            <>
+              <div
+                className="w-14 h-14 rounded-full mb-6 flex items-center justify-center"
+                style={{ background: "rgba(255, 107, 107, 0.15)", border: "2px solid #ff6b6b" }}
+              >
+                <span style={{ fontSize: 28, color: "#ff6b6b" }}>!</span>
+              </div>
+              <div className="text-xl font-bold text-[#e8e8e8] mb-2">
+                Update May Have Failed
+              </div>
+              <div className="text-sm text-[#606080] mb-6 text-center px-8">
+                The server did not respond within 60 seconds. It may still be restarting.
+              </div>
+              <div className="flex gap-4">
+                <TouchButton
+                  text="Reload Now"
+                  style="primary"
+                  onClick={() => window.location.reload()}
+                  width="180px"
+                />
+                <TouchButton
+                  text="Wait Longer"
+                  style="secondary"
+                  onClick={() => {
+                    setUpdateStatus("restarting");
+                    // Poll for another 60 seconds
+                    const deadline = Date.now() + 60_000;
+                    const poll = async () => {
+                      while (Date.now() < deadline) {
+                        await new Promise(r => setTimeout(r, 2000));
+                        try {
+                          const health = await fetch("/api/health", { signal: AbortSignal.timeout(2000) });
+                          if (health.ok) { window.location.reload(); return; }
+                        } catch { /* still down */ }
+                      }
+                      setUpdateStatus("stale");
+                    };
+                    poll();
+                  }}
+                  width="180px"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div
+                className="w-12 h-12 rounded-full mb-6 animate-spin"
+                style={{
+                  border: "3px solid #2a2a4a",
+                  borderTopColor: updateStatus === "restarting" ? "#51cf66" : "#00d4ff",
+                }}
+              />
+              <div className="text-xl font-bold text-[#e8e8e8] mb-2">
+                {updateStatus === "restarting" ? "Restarting..." : "Updating..."}
+              </div>
+              <div className="text-sm text-[#606080]">
+                Do not power off the device.
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
