@@ -124,9 +124,14 @@ def scale_poll_loop() -> None:
                 logger.warning("Scale poll error (x%d): %s", consecutive_errors, e)
             with scale_lock:
                 latest_reading["error"] = str(e)
-            # If the serial connection broke, mark disconnected so we retry
+            # If the serial connection broke, disconnect cleanly so we retry.
+            # Using disconnect() instead of nulling _serial directly ensures
+            # the port handle is properly closed and freed on Windows.
             if scale._serial and not scale._serial.is_open:
-                scale._serial = None
+                try:
+                    scale.disconnect()
+                except Exception:
+                    scale._serial = None  # last resort if disconnect() fails
             # Exponential backoff: step up through the intervals
             backoff_idx = min(consecutive_errors, len(_BACKOFF_STEPS) - 1)
             sleep_interval = _BACKOFF_STEPS[backoff_idx]

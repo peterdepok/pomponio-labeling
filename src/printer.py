@@ -124,6 +124,7 @@ class Printer:
     def _send_file_fallback(self, zpl: str) -> None:
         """Fallback: write ZPL to a temp file and copy to printer."""
         import tempfile
+        tmp_path = None
         try:
             with tempfile.NamedTemporaryFile(
                 mode="w", suffix=".zpl", delete=False
@@ -139,10 +140,11 @@ class Printer:
             if result.returncode != 0:
                 raise PrinterError(f"File copy to printer failed: {result.stderr}")
         finally:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
+            if tmp_path is not None:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
 
     def _send_unix(self, zpl: str) -> None:
         """Send ZPL on Unix/macOS via lp command (for development/testing)."""

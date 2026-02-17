@@ -82,7 +82,7 @@ function App() {
   }, [app, settings.emailRecipient, audit]);
 
   const inactivity = useInactivityEmail({
-    enabled: !!settings.emailRecipient,
+    enabled: !!settings.emailRecipient && !!settings.operatorName,
     hasData: app.animals.length > 0,
     onInactivityTimeout: handleInactivityTimeout,
   });
@@ -342,7 +342,7 @@ function App() {
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: "#0d0d1a" }}>
       <OfflineBanner />
-      {app.storageWarning && (
+      {app.storageWarning && workflow.state === "idle" && (
         <div
           style={{
             position: "fixed",

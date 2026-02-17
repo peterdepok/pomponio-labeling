@@ -37,6 +37,10 @@ export function useBarcodeScanner(options: UseBarcodeScannerOptions): UseBarcode
   const [lastScan, setLastScan] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
 
+  // Debounce: ignore repeated scans of the same barcode within 2 seconds
+  const lastEmittedRef = useRef<{ barcode: string; time: number }>({ barcode: "", time: 0 });
+  const DEBOUNCE_MS = 2000;
+
   // Stable reference to onScan to avoid re-attaching listener
   const onScanRef = useRef(onScan);
   onScanRef.current = onScan;
@@ -78,8 +82,13 @@ export function useBarcodeScanner(options: UseBarcodeScannerOptions): UseBarcode
       if (e.key === "Enter") {
         if (bufferRef.current.length >= minLength) {
           const barcode = bufferRef.current;
-          setLastScan(barcode);
-          onScanRef.current(barcode);
+          const prev = lastEmittedRef.current;
+          // Suppress duplicate scans of the same barcode within 2s
+          if (barcode !== prev.barcode || now - prev.time > DEBOUNCE_MS) {
+            lastEmittedRef.current = { barcode, time: now };
+            setLastScan(barcode);
+            onScanRef.current(barcode);
+          }
         }
         resetBuffer();
         return;

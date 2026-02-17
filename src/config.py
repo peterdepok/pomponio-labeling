@@ -60,9 +60,13 @@ class Config:
             logger.info("No config file found, using defaults")
 
     def save(self) -> None:
-        """Write current config to file."""
-        with open(self.config_path, "w") as f:
+        """Write current config to file (atomic via tmp + rename)."""
+        tmp_path = self.config_path + ".tmp"
+        with open(tmp_path, "w") as f:
             self._config.write(f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, self.config_path)
         logger.info("Config saved to %s", self.config_path)
 
     def get(self, section: str, key: str, fallback: Optional[str] = None) -> str:

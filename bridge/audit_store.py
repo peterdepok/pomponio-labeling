@@ -147,7 +147,12 @@ def rotate_log() -> list[dict]:
     with _lock:
         events = _read_events()
         if events:
-            _archive_events(events)
+            archive_path = _archive_events(events)
+            if archive_path is None:
+                # Archive write failed (disk full, permission denied).
+                # Do NOT clear the log; the events would be lost.
+                logger.error("Audit log NOT cleared because archive failed")
+                return events
         _write_events([])
 
     # Housekeeping: purge archives older than 30 days
