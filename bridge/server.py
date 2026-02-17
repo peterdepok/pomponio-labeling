@@ -464,16 +464,30 @@ EXIT_CODE_SHUTDOWN = 42
 
 @app.route("/api/shutdown", methods=["POST"])
 def api_shutdown():
-    """Terminate the kiosk process cleanly.
+    """Terminate the kiosk process and Chrome cleanly.
 
     Called by the frontend Exit handler after the shift report is sent.
-    Uses exit code 42 so the watchdog knows this was intentional and
-    does not relaunch the app.
+    Kills the Chrome browser process first (since os._exit skips atexit
+    handlers), then exits with code 42 so the watchdog knows this was
+    intentional and does not relaunch the app.
     """
     logger.info("Shutdown requested by operator")
 
     def _shutdown():
         time.sleep(0.5)  # let the HTTP 200 flush
+
+        # Kill Chrome before exiting. os._exit() skips atexit handlers,
+        # so the cleanup registered in run_production.py would not fire.
+        try:
+            import run_production
+            proc = run_production.browser_process
+            if proc and proc.poll() is None:
+                logger.info("Terminating browser process (pid %d)", proc.pid)
+                proc.terminate()
+                proc.wait(timeout=5)
+        except Exception as e:
+            logger.warning("Browser cleanup failed: %s", e)
+
         logger.info("Shutting down (exit code %d)", EXIT_CODE_SHUTDOWN)
         os._exit(EXIT_CODE_SHUTDOWN)
 

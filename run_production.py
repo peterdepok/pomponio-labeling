@@ -25,6 +25,11 @@ URL = f"http://localhost:{PORT}"
 # to an existing Chrome/Edge instance). Stored inside the project directory.
 KIOSK_PROFILE_DIR = os.path.join(PROJECT_ROOT, ".kiosk-profile")
 
+# Module-level reference to the browser subprocess so the /api/shutdown
+# endpoint can terminate Chrome before killing the Python process.
+# Set in main(), read by bridge.server.api_shutdown().
+browser_process: subprocess.Popen | None = None
+
 # ---------------------------------------------------------------------------
 # Browser detection (Chrome preferred, Edge fallback)
 # ---------------------------------------------------------------------------
@@ -117,6 +122,8 @@ def main():
     browser = find_browser()
     browser_proc = None
 
+    global browser_process
+
     if browser:
         print(f"Launching kiosk browser: {browser}")
         browser_proc = subprocess.Popen([
@@ -131,6 +138,9 @@ def main():
             "--autoplay-policy=no-user-gesture-required",
             URL,
         ])
+
+        # Store reference for /api/shutdown to use
+        browser_process = browser_proc
 
         def cleanup():
             if browser_proc and browser_proc.poll() is None:
