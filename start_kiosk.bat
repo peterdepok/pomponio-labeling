@@ -12,6 +12,9 @@ REM
 REM  Includes watchdog: if the process exits, waits 5s and
 REM  re-launches (up to 10 restarts to prevent infinite loop).
 REM
+REM  Exit code 42 = intentional operator shutdown. Watchdog stops.
+REM  Any other exit code = crash or update restart. Watchdog relaunches.
+REM
 REM  Uses python.exe (not pythonw) so all errors are captured
 REM  in kiosk.log. The console window is minimized automatically.
 REM -----------------------------------------------------------
@@ -64,8 +67,15 @@ if %RESTART_COUNT% GEQ %MAX_RESTARTS% (
 echo [%date% %time%] Starting kiosk (restart #%RESTART_COUNT%^) using %PYTHON_EXE% >> kiosk.log
 
 %PYTHON_EXE% run_production.py >> kiosk.log 2>&1
+set EXIT_CODE=%ERRORLEVEL%
 
-echo [%date% %time%] Process exited (code %ERRORLEVEL%^). Waiting 5s before restart... >> kiosk.log
+REM --- Exit code 42 = operator pressed Exit. Stop the watchdog. ---
+if %EXIT_CODE% EQU 42 (
+    echo [%date% %time%] Operator shutdown (exit code 42^). Watchdog stopping. >> kiosk.log
+    exit /b 0
+)
+
+echo [%date% %time%] Process exited (code %EXIT_CODE%^). Waiting 5s before restart... >> kiosk.log
 set /a RESTART_COUNT=%RESTART_COUNT%+1
 timeout /t 5 /nobreak >nul
 goto loop

@@ -307,11 +307,21 @@ function App() {
     // Small delay to let final writes flush to localStorage
     await new Promise(r => setTimeout(r, 100));
 
-    // Attempt to close the window; fall back to blank page
+    // Tell the server to shut down. The /api/shutdown endpoint calls
+    // os._exit(42), which the watchdog recognises as an intentional
+    // operator exit and does NOT relaunch.
+    try {
+      await fetch("/api/shutdown", { method: "POST" });
+    } catch {
+      // Server may already be down; proceed to close Chrome anyway
+    }
+
+    // Give the server a moment to flush the response, then close Chrome.
+    // window.close() often fails in kiosk mode; about:blank is fallback.
+    await new Promise(r => setTimeout(r, 300));
     try {
       window.close();
     } catch { /* browser may block */ }
-    // If window.close() didn't work (most browsers block it), go blank
     setTimeout(() => {
       window.location.href = "about:blank";
     }, 500);

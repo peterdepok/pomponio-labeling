@@ -457,6 +457,30 @@ def api_update_apply():
     return jsonify(result), 500
 
 
+# Exit code used to signal an intentional operator-initiated shutdown.
+# The watchdog (start_kiosk.bat) recognises this code and does NOT restart.
+EXIT_CODE_SHUTDOWN = 42
+
+
+@app.route("/api/shutdown", methods=["POST"])
+def api_shutdown():
+    """Terminate the kiosk process cleanly.
+
+    Called by the frontend Exit handler after the shift report is sent.
+    Uses exit code 42 so the watchdog knows this was intentional and
+    does not relaunch the app.
+    """
+    logger.info("Shutdown requested by operator")
+
+    def _shutdown():
+        time.sleep(0.5)  # let the HTTP 200 flush
+        logger.info("Shutting down (exit code %d)", EXIT_CODE_SHUTDOWN)
+        os._exit(EXIT_CODE_SHUTDOWN)
+
+    threading.Thread(target=_shutdown, daemon=True, name="shutdown").start()
+    return jsonify({"ok": True})
+
+
 # SPA catch-all: serve index.html for any path not matched above
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
