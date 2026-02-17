@@ -16,6 +16,8 @@ import { generateAnimalManifestCsv, generateDailyProductionCsv, exportCsv } from
 import { sendReport } from "../data/email.ts";
 import type { LogEventFn } from "../hooks/useAuditLog.ts";
 
+const MAX_ANIMAL_NAME_LENGTH = 60;
+
 interface ManifestItem {
   sku: string;
   productName: string;
@@ -77,7 +79,7 @@ export function AnimalsScreen({
     minLength: 4,
     alphanumeric: true,
     onScan: (barcode: string) => {
-      setNewName(barcode);
+      setNewName(barcode.slice(0, MAX_ANIMAL_NAME_LENGTH));
       setNewAnimalPhase("confirm");
     },
   });
@@ -96,7 +98,7 @@ export function AnimalsScreen({
   };
 
   const doCreate = () => {
-    const name = newName.trim();
+    const name = newName.trim().slice(0, MAX_ANIMAL_NAME_LENGTH);
     if (!name) return;
     const id = onCreateAnimal(name);
     logEvent("animal_created", { animalId: id, name });
@@ -434,7 +436,7 @@ export function AnimalsScreen({
         placeholder="Enter animal name..."
         showNumbers
         onConfirm={(val) => {
-          setNewName(val);
+          setNewName(val.slice(0, MAX_ANIMAL_NAME_LENGTH));
           setShowNameKeyboard(false);
           setNewAnimalPhase("confirm");
         }}

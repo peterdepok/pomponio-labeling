@@ -274,6 +274,34 @@ export function LabelingScreen({
     scale.reset();
   }, [context.sku, printError, logEvent, onCancel, scale]);
 
+  // Save without print: record the package even though the label failed.
+  // This preserves the weight data in the manifest. The operator can apply
+  // a hand-written label or reprint from the box view later.
+  const handleSaveWithoutPrint = useCallback(() => {
+    if (!barcodeRef.current || !context.sku || !context.weightLb || !context.productName) return;
+    logEvent("print_skipped_save", {
+      sku: context.sku,
+      barcode: barcodeRef.current,
+      weightLb: context.weightLb,
+      error: printError,
+    });
+    // Record the package via the same path as a successful print
+    onPackageComplete({
+      sku: context.sku,
+      productName: context.productName,
+      weightLb: context.weightLb,
+      barcode: barcodeRef.current,
+    });
+    showToast(`Saved WITHOUT label: ${context.productName} at ${context.weightLb.toFixed(2)} lb`);
+    // Reset workflow
+    setPrintFailed(false);
+    setPrintError(null);
+    setIsPrinting(false);
+    onComplete();
+    scale.reset();
+    onNavigateToProducts();
+  }, [context.sku, context.weightLb, context.productName, printError, logEvent, onPackageComplete, showToast, onComplete, scale, onNavigateToProducts]);
+
   // Force-lock: accept the current (unstable) reading
   const handleForceLock = useCallback(() => {
     if (scale.weight <= 0) return;
@@ -497,9 +525,9 @@ export function LabelingScreen({
                   {printError}
                 </div>
                 <div className="text-xs text-[#606080] mb-4">
-                  Package will NOT be recorded until label prints successfully.
+                  Package will NOT be recorded until label prints or you save without print.
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-3 mb-3">
                   <button
                     onClick={handleRetryPrint}
                     className="flex-1 rounded-xl font-bold text-lg"
@@ -529,6 +557,20 @@ export function LabelingScreen({
                     Cancel
                   </button>
                 </div>
+                <button
+                  onClick={handleSaveWithoutPrint}
+                  className="w-full rounded-xl font-bold text-base"
+                  style={{
+                    height: "56px",
+                    color: "#ffffff",
+                    background: "linear-gradient(180deg, #7c4dff, #651fff)",
+                    border: "none",
+                    cursor: "pointer",
+                    boxShadow: "0 4px 0 0 #4a148c, 0 6px 10px rgba(0,0,0,0.3)",
+                  }}
+                >
+                  Save Without Print
+                </button>
               </div>
             ) : (
               /* Normal print animation */

@@ -346,21 +346,74 @@ function App() {
         <div
           style={{
             position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
+            inset: 0,
             zIndex: 9998,
-            background: "linear-gradient(90deg, #e65100, #ff6d00)",
-            color: "#ffffff",
-            textAlign: "center",
-            padding: "10px 16px",
-            fontSize: 14,
-            fontWeight: 700,
-            letterSpacing: "0.05em",
-            boxShadow: "0 2px 12px rgba(230, 81, 0, 0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.85)",
+            backdropFilter: "blur(4px)",
+            WebkitBackdropFilter: "blur(4px)",
           }}
         >
-          STORAGE WARNING -- Browser storage is full. Data may not be saved. Close and reopen the current animal to free space.
+          <div
+            style={{
+              maxWidth: 440,
+              width: "90%",
+              borderRadius: 16,
+              overflow: "hidden",
+              background: "linear-gradient(145deg, #1e2240, #141428)",
+              boxShadow: "0 8px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.06)",
+            }}
+          >
+            <div style={{ height: 4, background: "linear-gradient(90deg, #e65100, #ff6d00, #e65100)" }} />
+            <div style={{ padding: 32, textAlign: "center" }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>&#x26A0;</div>
+              <h2 style={{ fontSize: 22, fontWeight: 700, color: "#ff6d00", marginBottom: 8 }}>
+                Storage Full
+              </h2>
+              <p style={{ fontSize: 14, color: "#a0a0b0", marginBottom: 24, lineHeight: 1.5 }}>
+                Browser storage is full. New packages cannot be saved safely.
+                Close the current animal to free space, then continue.
+              </p>
+              <div style={{ display: "flex", gap: 12 }}>
+                <button
+                  onClick={() => setActiveTab("Animals")}
+                  style={{
+                    flex: 1,
+                    height: 56,
+                    borderRadius: 12,
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: "#ffffff",
+                    background: "linear-gradient(180deg, #ffa500, #e68a00)",
+                    boxShadow: "0 4px 0 0 #b36b00, 0 6px 10px rgba(0,0,0,0.3)",
+                  }}
+                >
+                  Go to Animals
+                </button>
+                <button
+                  onClick={() => setActiveTab("Settings")}
+                  style={{
+                    flex: 1,
+                    height: 56,
+                    borderRadius: 12,
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: "#a0a0b0",
+                    background: "linear-gradient(180deg, #2a2a4a, #1e1e3a)",
+                    boxShadow: "0 4px 0 0 #14142a, 0 6px 10px rgba(0,0,0,0.3)",
+                  }}
+                >
+                  Settings
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       {!auditSyncOk && (

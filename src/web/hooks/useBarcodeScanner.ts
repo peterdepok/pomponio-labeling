@@ -61,6 +61,13 @@ export function useBarcodeScanner(options: UseBarcodeScannerOptions): UseBarcode
         return;
       }
 
+      // Skip when the on-screen KeyboardModal is open. The modal sets a
+      // data attribute on document.body so we can detect it globally.
+      if (document.body.hasAttribute("data-keyboard-modal-open")) {
+        resetBuffer();
+        return;
+      }
+
       const now = Date.now();
 
       // If too much time passed since last keystroke, reset (human typing)

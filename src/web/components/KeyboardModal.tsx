@@ -38,6 +38,20 @@ export function KeyboardModal({
     }
   }, [isOpen, initialValue]);
 
+  // Signal to barcode scanner that a keyboard modal is open. The scanner
+  // hook checks for this attribute to avoid capturing keystrokes meant
+  // for the on-screen keyboard (which fires synthetic key events).
+  useEffect(() => {
+    if (isOpen) {
+      document.body.setAttribute("data-keyboard-modal-open", "true");
+    } else {
+      document.body.removeAttribute("data-keyboard-modal-open");
+    }
+    return () => {
+      document.body.removeAttribute("data-keyboard-modal-open");
+    };
+  }, [isOpen]);
+
   const handleKey = useCallback((char: string) => {
     setValue(prev => prev + char);
   }, []);

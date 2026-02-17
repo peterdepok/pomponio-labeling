@@ -52,6 +52,7 @@ export type AuditEventType =
   | "print_failed"
   | "print_retry"
   | "print_cancel_after_failure"
+  | "print_skipped_save"
   | "weight_override_forced"
   | "weight_manual_entry"
   | "audit_log_emailed"
@@ -89,6 +90,7 @@ export interface AuditPayloads {
   print_failed: { error: string | undefined; sku: string | null | undefined; barcode: string };
   print_retry: { sku: string; barcode: string };
   print_cancel_after_failure: { sku: string | null; error: string | null };
+  print_skipped_save: { sku: string; barcode: string; weightLb: number; error: string | null };
   weight_override_forced: { weightLb: number; sku: string; productName: string };
   weight_manual_entry: { weightLb: number; sku: string; productName: string };
   audit_log_emailed: { recipient: string; entryCount: number };

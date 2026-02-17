@@ -4,7 +4,7 @@
  * persisted in localStorage). Falls back to on-screen keyboard for new names.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { KeyboardModal } from "./KeyboardModal.tsx";
 import { TouchButton } from "./TouchButton.tsx";
 
@@ -44,11 +44,32 @@ export function OperatorGateModal({ isOpen, onConfirm }: OperatorGateModalProps)
   const [recentNames, setRecentNames] = useState<string[]>([]);
   const [showKeyboard, setShowKeyboard] = useState(false);
 
+  // Emergency bypass: triple-tap the title within 2 seconds to enter as
+  // "Emergency" without requiring the on-screen keyboard. This allows
+  // operators to bypass a broken keyboard or corrupted localStorage.
+  const bypassTapRef = useRef({ count: 0, lastTap: 0 });
+
+  const handleTitleTap = () => {
+    const now = Date.now();
+    const bp = bypassTapRef.current;
+    if (now - bp.lastTap > 2000) {
+      bp.count = 1;
+    } else {
+      bp.count += 1;
+    }
+    bp.lastTap = now;
+    if (bp.count >= 5) {
+      bp.count = 0;
+      onConfirm("Emergency");
+    }
+  };
+
   // Refresh recent list whenever the modal opens
   useEffect(() => {
     if (isOpen) {
       setRecentNames(readRecent());
       setShowKeyboard(false);
+      bypassTapRef.current = { count: 0, lastTap: 0 };
     }
   }, [isOpen]);
 
@@ -92,7 +113,12 @@ export function OperatorGateModal({ isOpen, onConfirm }: OperatorGateModalProps)
         />
 
         <div className="p-8">
-          <h2 className="text-2xl font-bold text-[#e8e8e8] mb-2">Operator Identification</h2>
+          <h2
+            className="text-2xl font-bold text-[#e8e8e8] mb-2 select-none"
+            onClick={handleTitleTap}
+          >
+            Operator Identification
+          </h2>
           <p className="text-sm text-[#606080] mb-6">Select your name or type a new one to begin.</p>
 
           {/* Recent operator buttons */}
