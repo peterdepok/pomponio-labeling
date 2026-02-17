@@ -121,51 +121,28 @@ def wait_for_flask(timeout_s: float = 15.0) -> bool:
 # Chrome profile lock cleanup
 # ---------------------------------------------------------------------------
 
-def _clean_chrome_profile(profile_dir: str) -> None:
-    """Clean stale Chrome lock files and session data from a previous force-kill.
+def _nuke_chrome_profile(profile_dir: str) -> None:
+    """Delete the entire Chrome kiosk profile directory.
 
-    When Chrome is terminated via taskkill /F, it cannot clean up its
-    profile lock files. On next launch with the same --user-data-dir,
-    Chrome may:
-      - Show a "restore session" infobar (breaks kiosk mode)
-      - Delegate to a non-existent "primary" instance and exit immediately
-      - Refuse to open the URL, showing a blank page
-      - Restore a cached ERR_CONNECTION_REFUSED page
+    After a force-kill (taskkill /F or os._exit), Chrome's profile
+    directory contains stale lock files, cached error pages, and
+    session restore data that cause unpredictable behavior on restart.
+    The only reliable fix: delete the entire profile. Chrome recreates
+    it on next launch in ~200ms.
 
-    We remove the lock files and session restore data before launching
-    so Chrome always starts as the primary instance with a clean state.
+    The bat file also does this (defense-in-depth), but this Python
+    fallback catches cases where the bat's rmdir failed due to file locks.
     """
     import shutil
 
     if not os.path.isdir(profile_dir):
         return
 
-    # Lock files that prevent Chrome from becoming the primary instance
-    lock_files = [
-        "SingletonLock",      # Linux/macOS
-        "SingletonSocket",    # Linux
-        "SingletonCookie",    # Linux
-        "lockfile",           # Windows
-    ]
-    for name in lock_files:
-        lock_path = os.path.join(profile_dir, name)
-        try:
-            if os.path.exists(lock_path):
-                os.remove(lock_path)
-                print(f"Removed stale Chrome lock: {lock_path}")
-        except OSError:
-            pass  # locked by a running Chrome; leave it
-
-    # Session restore data that causes Chrome to show previous page
-    # (often the ERR_CONNECTION_REFUSED error) instead of the new URL.
-    # Located in Default/Sessions/ within the user-data-dir.
-    sessions_dir = os.path.join(profile_dir, "Default", "Sessions")
     try:
-        if os.path.isdir(sessions_dir):
-            shutil.rmtree(sessions_dir, ignore_errors=True)
-            print(f"Cleared Chrome session data: {sessions_dir}")
-    except OSError:
-        pass
+        shutil.rmtree(profile_dir, ignore_errors=True)
+        print(f"Deleted Chrome kiosk profile: {profile_dir}")
+    except OSError as e:
+        print(f"Could not delete Chrome profile (non-fatal): {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -196,10 +173,9 @@ def main():
 
     global browser_process
 
-    # Clean stale Chrome profile left by taskkill /F:
-    # lock files (prevent becoming primary instance) and session data
-    # (causes Chrome to restore the previous ERR_CONNECTION_REFUSED page).
-    _clean_chrome_profile(KIOSK_PROFILE_DIR)
+    # Delete the entire Chrome kiosk profile. Forces a clean start with
+    # no session restore, no cached error pages, no stale lock files.
+    _nuke_chrome_profile(KIOSK_PROFILE_DIR)
 
     if browser:
         # Cache-bust URL prevents Chrome from restoring a cached

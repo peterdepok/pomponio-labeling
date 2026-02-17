@@ -61,15 +61,35 @@ set MAX_RESTARTS=10
 
 :loop
 
-REM --- Kill any process still holding port 8000 ---
-REM   After os._exit(42), the Python process is dead but the TCP socket
-REM   may linger in TIME_WAIT. If a zombie python.exe is holding the port
-REM   (e.g., from a partial crash), kill it outright. Uses netstat + findstr
-REM   to locate the PID, then taskkill to terminate it. Errors are ignored
-REM   (port may already be free).
+REM --- SCORCHED EARTH: kill everything from previous session ---
+REM   Chrome's multi-process architecture (browser, GPU, renderer, crashpad)
+REM   survives partial kills. Python daemon threads can hold the port after
+REM   os._exit. The only reliable approach on a kiosk: kill all Chrome and
+REM   Python processes, free the port, wait for the OS to release handles,
+REM   then nuke the Chrome profile to prevent session restore.
+
+echo [%date% %time%] Cleanup: killing all Chrome and Python processes... >> kiosk.log
+taskkill /F /IM chrome.exe >nul 2>&1
+taskkill /F /IM python.exe >nul 2>&1
+
+REM Kill any process holding port 8000 (catches edge cases)
 for /f "tokens=5" %%P in ('netstat -aon ^| findstr ":8000.*LISTENING" 2^>nul') do (
     echo [%date% %time%] Killing leftover process on port 8000 ^(PID %%P^) >> kiosk.log
     taskkill /F /PID %%P >nul 2>&1
+)
+
+REM Let Windows fully release all handles, sockets, and file locks.
+REM 3 seconds is enough for TIME_WAIT recycling when combined with
+REM SO_REUSEADDR in the Python code.
+echo [%date% %time%] Waiting 3s for OS cleanup... >> kiosk.log
+timeout /t 3 /nobreak >nul
+
+REM Delete the Chrome kiosk profile entirely. Forces a completely clean
+REM browser state: no session restore, no cached error pages, no stale
+REM lock files. Chrome recreates the profile on next launch.
+if exist ".kiosk-profile" (
+    echo [%date% %time%] Deleting Chrome kiosk profile... >> kiosk.log
+    rmdir /s /q ".kiosk-profile" >nul 2>&1
 )
 
 REM --- Log rotation: keep kiosk.log under 10 MB ---
@@ -102,18 +122,17 @@ set EXIT_CODE=%ERRORLEVEL%
 REM --- Exit code 42 = operator pressed Exit. Stop the watchdog. ---
 if %EXIT_CODE% EQU 42 (
     echo [%date% %time%] Operator shutdown (exit code 42^). Watchdog stopping. >> kiosk.log
-    REM Kill any orphaned Chrome processes using the kiosk profile
     taskkill /F /IM chrome.exe >nul 2>&1
+    taskkill /F /IM python.exe >nul 2>&1
+    for /f "tokens=5" %%P in ('netstat -aon ^| findstr ":8000.*LISTENING" 2^>nul') do (
+        taskkill /F /PID %%P >nul 2>&1
+    )
     exit /b 0
 )
 
-echo [%date% %time%] Process exited (code %EXIT_CODE%^). Waiting 5s before restart... >> kiosk.log
+echo [%date% %time%] Process exited (code %EXIT_CODE%^). Restarting... >> kiosk.log
 set /a RESTART_COUNT=%RESTART_COUNT%+1
 
-REM Kill orphaned Chrome and any process on port 8000 before relaunch
-taskkill /F /IM chrome.exe >nul 2>&1
-for /f "tokens=5" %%P in ('netstat -aon ^| findstr ":8000.*LISTENING" 2^>nul') do (
-    taskkill /F /PID %%P >nul 2>&1
-)
-timeout /t 5 /nobreak >nul
+REM The :loop target handles all cleanup (kill Chrome, kill Python,
+REM free port, wait 3s, delete profile). Just go there.
 goto loop
