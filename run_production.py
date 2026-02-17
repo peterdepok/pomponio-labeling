@@ -67,18 +67,24 @@ def start_flask() -> threading.Thread:
 
     The thread is stored so the main loop can check ``t.is_alive()``
     and exit (code 1) if Flask crashes, letting the watchdog relaunch.
+
+    Uses ``allow_unsafe_werkzeug=True`` on Werkzeug >= 2.4 to allow
+    ``app.run()`` in a thread outside __main__. Sets SO_REUSEADDR via
+    a custom WSGIServer so the port binds immediately after a hard kill
+    (os._exit) without waiting for TIME_WAIT to expire.
     """
     from bridge.server import create_app
+    from werkzeug.serving import make_server
 
     application = create_app()
 
+    # make_server sets SO_REUSEADDR by default, which is the key fix:
+    # after os._exit(42) the socket enters TIME_WAIT and blocks bind()
+    # for up to 30s on Windows. SO_REUSEADDR bypasses this.
+    server = make_server("0.0.0.0", PORT, application, threaded=True)
+
     def run():
-        application.run(
-            host="0.0.0.0",
-            port=PORT,
-            debug=False,
-            use_reloader=False,
-        )
+        server.serve_forever()
 
     t = threading.Thread(target=run, daemon=True, name="flask-server")
     t.start()
@@ -98,6 +104,42 @@ def wait_for_flask(timeout_s: float = 15.0) -> bool:
         except (urllib.error.URLError, OSError):
             time.sleep(0.5)
     return False
+
+
+# ---------------------------------------------------------------------------
+# Chrome profile lock cleanup
+# ---------------------------------------------------------------------------
+
+def _clean_chrome_locks(profile_dir: str) -> None:
+    """Remove stale Chrome lock files from a previous force-kill.
+
+    When Chrome is terminated via taskkill /F, it cannot clean up its
+    profile lock files. On next launch with the same --user-data-dir,
+    Chrome may:
+      - Show a "restore session" infobar (breaks kiosk mode)
+      - Delegate to a non-existent "primary" instance and exit immediately
+      - Refuse to open the URL, showing a blank page
+
+    We remove the lock files before launching so Chrome always starts
+    as the primary instance with a clean state.
+    """
+    if not os.path.isdir(profile_dir):
+        return
+
+    lock_files = [
+        "SingletonLock",      # Linux/macOS
+        "SingletonSocket",    # Linux
+        "SingletonCookie",    # Linux
+        "lockfile",           # Windows
+    ]
+    for name in lock_files:
+        lock_path = os.path.join(profile_dir, name)
+        try:
+            if os.path.exists(lock_path):
+                os.remove(lock_path)
+                print(f"Removed stale Chrome lock: {lock_path}")
+        except OSError:
+            pass  # locked by a running Chrome; leave it
 
 
 # ---------------------------------------------------------------------------
@@ -127,6 +169,13 @@ def main():
     browser_proc = None
 
     global browser_process
+
+    # Clean stale Chrome profile lock left by taskkill /F.
+    # Chrome writes a "SingletonLock" (Linux/Mac) or "lockfile" (Windows)
+    # in the user-data-dir. A force-kill leaves it behind, which causes
+    # the next Chrome launch to show a "restore session" prompt or fail
+    # to become the primary instance.
+    _clean_chrome_locks(KIOSK_PROFILE_DIR)
 
     if browser:
         print(f"Launching kiosk browser: {browser}")
