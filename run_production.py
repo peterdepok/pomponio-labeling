@@ -21,15 +21,6 @@ sys.path.insert(0, PROJECT_ROOT)
 PORT = 8000
 URL = f"http://localhost:{PORT}"
 
-# Local boot page that polls /api/health before redirecting to the app.
-# Chrome loads this as file:// instantly (no server needed), eliminating
-# the ERR_CONNECTION_REFUSED race condition on restart.
-BOOT_HTML = os.path.join(PROJECT_ROOT, "boot.html")
-# On Windows: C:\pomponio-labeling\boot.html -> file:///C:/pomponio-labeling/boot.html
-# On Linux/Mac: /home/user/project/boot.html -> file:///home/user/project/boot.html
-_boot_path = BOOT_HTML.replace("\\", "/")
-BOOT_URL = f"file:///{_boot_path}" if not _boot_path.startswith("/") else f"file://{_boot_path}"
-
 # Isolated Chrome profile so kiosk runs as its own process (not delegated
 # to an existing Chrome/Edge instance). Stored inside the project directory.
 KIOSK_PROFILE_DIR = os.path.join(PROJECT_ROOT, ".kiosk-profile")
@@ -77,23 +68,34 @@ def start_flask() -> threading.Thread:
     The thread is stored so the main loop can check ``t.is_alive()``
     and exit (code 1) if Flask crashes, letting the watchdog relaunch.
 
-    Uses ``allow_unsafe_werkzeug=True`` on Werkzeug >= 2.4 to allow
-    ``app.run()`` in a thread outside __main__. Sets SO_REUSEADDR via
-    a custom WSGIServer so the port binds immediately after a hard kill
-    (os._exit) without waiting for TIME_WAIT to expire.
+    Uses werkzeug make_server() which sets SO_REUSEADDR by default,
+    allowing the port to rebind immediately after os._exit(42) even
+    while the previous socket is in TIME_WAIT on Windows.
+
+    Falls back to app.run() if make_server is unavailable.
     """
     from bridge.server import create_app
-    from werkzeug.serving import make_server
 
     application = create_app()
 
-    # make_server sets SO_REUSEADDR by default, which is the key fix:
-    # after os._exit(42) the socket enters TIME_WAIT and blocks bind()
-    # for up to 30s on Windows. SO_REUSEADDR bypasses this.
-    server = make_server("0.0.0.0", PORT, application, threaded=True)
-
     def run():
-        server.serve_forever()
+        try:
+            from werkzeug.serving import make_server
+            # make_server sets SO_REUSEADDR by default, which is the key fix:
+            # after os._exit(42) the socket enters TIME_WAIT and blocks bind()
+            # for up to 30s on Windows. SO_REUSEADDR bypasses this.
+            server = make_server("0.0.0.0", PORT, application, threaded=True)
+            server.serve_forever()
+        except Exception as e:
+            # Fallback: use app.run() if make_server fails for any reason.
+            # Less resilient to TIME_WAIT but still functional.
+            print(f"make_server failed ({e}), falling back to app.run()")
+            application.run(
+                host="0.0.0.0",
+                port=PORT,
+                debug=False,
+                use_reloader=False,
+            )
 
     t = threading.Thread(target=run, daemon=True, name="flask-server")
     t.start()
@@ -119,8 +121,8 @@ def wait_for_flask(timeout_s: float = 15.0) -> bool:
 # Chrome profile lock cleanup
 # ---------------------------------------------------------------------------
 
-def _clean_chrome_locks(profile_dir: str) -> None:
-    """Remove stale Chrome lock files from a previous force-kill.
+def _clean_chrome_profile(profile_dir: str) -> None:
+    """Clean stale Chrome lock files and session data from a previous force-kill.
 
     When Chrome is terminated via taskkill /F, it cannot clean up its
     profile lock files. On next launch with the same --user-data-dir,
@@ -128,13 +130,17 @@ def _clean_chrome_locks(profile_dir: str) -> None:
       - Show a "restore session" infobar (breaks kiosk mode)
       - Delegate to a non-existent "primary" instance and exit immediately
       - Refuse to open the URL, showing a blank page
+      - Restore a cached ERR_CONNECTION_REFUSED page
 
-    We remove the lock files before launching so Chrome always starts
-    as the primary instance with a clean state.
+    We remove the lock files and session restore data before launching
+    so Chrome always starts as the primary instance with a clean state.
     """
+    import shutil
+
     if not os.path.isdir(profile_dir):
         return
 
+    # Lock files that prevent Chrome from becoming the primary instance
     lock_files = [
         "SingletonLock",      # Linux/macOS
         "SingletonSocket",    # Linux
@@ -149,6 +155,17 @@ def _clean_chrome_locks(profile_dir: str) -> None:
                 print(f"Removed stale Chrome lock: {lock_path}")
         except OSError:
             pass  # locked by a running Chrome; leave it
+
+    # Session restore data that causes Chrome to show previous page
+    # (often the ERR_CONNECTION_REFUSED error) instead of the new URL.
+    # Located in Default/Sessions/ within the user-data-dir.
+    sessions_dir = os.path.join(profile_dir, "Default", "Sessions")
+    try:
+        if os.path.isdir(sessions_dir):
+            shutil.rmtree(sessions_dir, ignore_errors=True)
+            print(f"Cleared Chrome session data: {sessions_dir}")
+    except OSError:
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -179,18 +196,16 @@ def main():
 
     global browser_process
 
-    # Clean stale Chrome profile lock left by taskkill /F.
-    # Chrome writes a "SingletonLock" (Linux/Mac) or "lockfile" (Windows)
-    # in the user-data-dir. A force-kill leaves it behind, which causes
-    # the next Chrome launch to show a "restore session" prompt or fail
-    # to become the primary instance.
-    _clean_chrome_locks(KIOSK_PROFILE_DIR)
+    # Clean stale Chrome profile left by taskkill /F:
+    # lock files (prevent becoming primary instance) and session data
+    # (causes Chrome to restore the previous ERR_CONNECTION_REFUSED page).
+    _clean_chrome_profile(KIOSK_PROFILE_DIR)
 
     if browser:
-        # Use boot.html (local file) instead of localhost:8000 directly.
-        # boot.html polls /api/health and redirects once Flask responds.
-        # This prevents ERR_CONNECTION_REFUSED if Chrome wins the race.
-        launch_url = BOOT_URL if os.path.isfile(BOOT_HTML) else URL
+        # Cache-bust URL prevents Chrome from restoring a cached
+        # ERR_CONNECTION_REFUSED page from a previous session.
+        cache_bust = f"?_t={int(time.time())}"
+        launch_url = f"{URL}{cache_bust}"
         print(f"Launching kiosk browser: {browser}")
         print(f"  URL: {launch_url}")
         browser_proc = subprocess.Popen([
