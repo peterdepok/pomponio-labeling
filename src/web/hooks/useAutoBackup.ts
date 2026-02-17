@@ -1,9 +1,12 @@
 /**
  * Periodic state backup to disk via Flask endpoint.
  *
- * Every 60 seconds, POSTs the current app state (animals, boxes, packages,
+ * Every 15 seconds, POSTs the current app state (animals, boxes, packages,
  * currentAnimalId, currentBoxId) to /api/backup. The Flask endpoint writes
  * this to exports/state_backup.json, overwriting each time.
+ *
+ * Also exposes a `triggerBackup()` function for immediate, on-demand
+ * backup after critical events (e.g. package labeled, box closed).
  *
  * This creates a second persistence lane alongside localStorage, protecting
  * against localStorage corruption, accidental clearing, or browser crashes.
@@ -13,13 +16,13 @@
  *
  * Uses refs for the state snapshot to avoid re-creating the interval
  * every time state changes (which would defeat the purpose of a stable
- * 60-second cadence).
+ * cadence).
  */
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { Animal, Box, Package } from "./useAppState.ts";
 
-const BACKUP_INTERVAL_MS = 60_000; // 60 seconds
+const BACKUP_INTERVAL_MS = 15_000; // 15 seconds
 
 interface BackupState {
   animals: Animal[];
@@ -29,7 +32,25 @@ interface BackupState {
   currentBoxId: number | null;
 }
 
-export function useAutoBackup(state: BackupState): void {
+function doBackup(state: BackupState): void {
+  if (state.animals.length === 0) return;
+
+  fetch("/api/backup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      animals: state.animals,
+      boxes: state.boxes,
+      packages: state.packages,
+      currentAnimalId: state.currentAnimalId,
+      currentBoxId: state.currentBoxId,
+    }),
+  }).catch(() => {
+    // Silently ignore backup failures (best-effort)
+  });
+}
+
+export function useAutoBackup(state: BackupState): { triggerBackup: () => void } {
   // Keep a mutable ref to the latest state so the interval callback
   // always reads fresh data without causing effect re-runs.
   const stateRef = useRef(state);
@@ -37,26 +58,16 @@ export function useAutoBackup(state: BackupState): void {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      const current = stateRef.current;
-
-      // Nothing to back up
-      if (current.animals.length === 0) return;
-
-      fetch("/api/backup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          animals: current.animals,
-          boxes: current.boxes,
-          packages: current.packages,
-          currentAnimalId: current.currentAnimalId,
-          currentBoxId: current.currentBoxId,
-        }),
-      }).catch(() => {
-        // Silently ignore backup failures (best-effort)
-      });
+      doBackup(stateRef.current);
     }, BACKUP_INTERVAL_MS);
 
     return () => clearInterval(timer);
   }, []); // Stable interval: never re-created
+
+  // On-demand backup for critical events (package labeled, box closed, etc.)
+  const triggerBackup = useCallback(() => {
+    doBackup(stateRef.current);
+  }, []);
+
+  return { triggerBackup };
 }

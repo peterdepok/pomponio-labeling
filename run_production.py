@@ -63,7 +63,11 @@ def find_browser() -> str | None:
 # ---------------------------------------------------------------------------
 
 def start_flask() -> threading.Thread:
-    """Start the Flask bridge in a daemon thread."""
+    """Start the Flask bridge in a daemon thread.
+
+    The thread is stored so the main loop can check ``t.is_alive()``
+    and exit (code 1) if Flask crashes, letting the watchdog relaunch.
+    """
     from bridge.server import create_app
 
     application = create_app()
@@ -110,7 +114,7 @@ def main():
 
     # 2. Start Flask
     print(f"Starting Flask bridge on port {PORT}...")
-    start_flask()
+    flask_thread = start_flask()
 
     if not wait_for_flask():
         print("ERROR: Flask did not start within 15 seconds.")
@@ -151,12 +155,16 @@ def main():
         print("No browser found. Open the following URL manually:")
         print(f"  {URL}")
 
-    # 4. Keep Flask alive until Ctrl+C (browser launch is fire-and-forget
-    #    because Chromium hands off to an existing process and exits immediately)
+    # 4. Keep alive with Flask health monitoring. If the Flask daemon
+    #    thread dies (uncaught exception, segfault in C extension, etc.)
+    #    exit with code 1 so the watchdog relaunches immediately.
     print("Press Ctrl+C to stop the server.")
     try:
         while True:
-            time.sleep(1)
+            time.sleep(2)
+            if not flask_thread.is_alive():
+                print("FATAL: Flask thread died unexpectedly. Exiting for watchdog restart.")
+                sys.exit(1)
     except KeyboardInterrupt:
         print("\nShutting down...")
 

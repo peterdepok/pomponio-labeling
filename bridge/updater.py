@@ -108,6 +108,10 @@ def check_for_update() -> dict:
 def apply_update() -> dict:
     """Pull latest code and rebuild the React frontend.
 
+    If the npm build fails after a successful git pull, the code is
+    rolled back to the pre-pull commit with ``git reset --hard`` so
+    the kiosk never serves a broken React build.
+
     Returns:
         Dict with ok bool. On success, restartRequired is True.
         On failure, error contains the stderr output.
@@ -118,6 +122,10 @@ def apply_update() -> dict:
             ["git", "rev-parse", "--abbrev-ref", "HEAD"], timeout=5
         )
         branch = branch_result.stdout.strip() if branch_result.returncode == 0 else "main"
+
+        # Record pre-pull SHA for rollback if build fails
+        head_before = _run(["git", "rev-parse", "HEAD"], timeout=5)
+        pre_pull_sha = head_before.stdout.strip() if head_before.returncode == 0 else ""
 
         # Stash any local changes (e.g. config.ini) so pull never conflicts
         stash = _run(["git", "stash", "--include-untracked"], timeout=10)
@@ -144,6 +152,21 @@ def apply_update() -> dict:
         build = _run(["npm", "run", "build"], timeout=120)
         if build.returncode != 0:
             logger.error("npm run build failed: %s", build.stderr)
+
+            # Rollback: reset to pre-pull commit so the old dist/ stays valid
+            if pre_pull_sha:
+                logger.warning("Rolling back to %s after failed build", pre_pull_sha[:8])
+                rollback = _run(
+                    ["git", "reset", "--hard", pre_pull_sha], timeout=15
+                )
+                if rollback.returncode == 0:
+                    logger.info("Rollback successful")
+                    # Restore stash on top of rolled-back code
+                    if did_stash:
+                        _run(["git", "stash", "pop"], timeout=10)
+                else:
+                    logger.error("Rollback failed: %s", rollback.stderr)
+
             return {"ok": False, "error": f"Build failed: {build.stderr.strip()}"}
 
         logger.info("npm run build succeeded")
@@ -157,13 +180,37 @@ def apply_update() -> dict:
         return {"ok": False, "error": str(e)}
 
 
+def _kill_browser() -> None:
+    """Terminate the kiosk Chrome process if it is still running.
+
+    Uses the module-level ``browser_process`` reference stored by
+    run_production.main(). Imported lazily to avoid circular imports.
+    Failures are logged but never raised; the restart must proceed
+    regardless.
+    """
+    try:
+        import run_production
+        proc = run_production.browser_process
+        if proc and proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=5)
+            except Exception:
+                proc.kill()
+            logger.info("Browser terminated before restart")
+    except Exception as e:
+        logger.warning("Browser cleanup during restart failed: %s", e)
+
+
 def schedule_restart(delay: float = 2.0) -> None:
     """Schedule a process restart after a short delay.
 
     The delay allows the HTTP response to complete before the process
-    exits. On both platforms, the process simply terminates and relies
-    on the external watchdog (start_kiosk.bat on Windows, systemd or
-    similar on Unix) to relaunch it.
+    exits. Chrome is killed first so the user does not see BRIDGE
+    OFFLINE during the restart gap. On both platforms, the process
+    simply terminates and relies on the external watchdog
+    (start_kiosk.bat on Windows, systemd or similar on Unix) to
+    relaunch it.
 
     On Unix without a watchdog, os.execv replaces the process in place
     as a fallback.
@@ -171,6 +218,9 @@ def schedule_restart(delay: float = 2.0) -> None:
     def _restart():
         time.sleep(delay)
         logger.info("Restarting application...")
+
+        # Kill Chrome before exit so the user never sees BRIDGE OFFLINE
+        _kill_browser()
 
         if sys.platform == "win32":
             # Exit cleanly; the watchdog loop in start_kiosk.bat will

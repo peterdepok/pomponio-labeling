@@ -86,8 +86,9 @@ function App() {
     onInactivityTimeout: handleInactivityTimeout,
   });
 
-  // Periodic backup: writes state snapshot to disk every 60s via Flask
-  useAutoBackup({
+  // Periodic backup: writes state snapshot to disk every 15s via Flask.
+  // triggerBackup() fires an immediate backup after critical state changes.
+  const { triggerBackup } = useAutoBackup({
     animals: app.animals,
     boxes: app.boxes,
     packages: app.packages,
@@ -208,7 +209,8 @@ function App() {
     });
     speed.recordPackage();
     inactivity.recordActivity();
-  }, [app, audit, speed, inactivity]);
+    triggerBackup();
+  }, [app, audit, speed, inactivity, triggerBackup]);
 
   const handleCloseBox = useCallback((boxId: number) => {
     const box = app.boxes.find(b => b.id === boxId);
@@ -222,6 +224,7 @@ function App() {
       labelCount: pkgs.length,
     });
     app.closeBox(boxId);
+    triggerBackup();
     // Auto-create new box. The new box number is derived from the count
     // of existing boxes for this animal, rather than looking up the new
     // box in state (which hasn't re-rendered yet).
@@ -236,7 +239,7 @@ function App() {
       app.setCurrentBoxId(newBoxId);
     }
     app.showToast("Box closed. New box opened.");
-  }, [app, audit]);
+  }, [app, audit, triggerBackup]);
 
   const handleReopenBox = useCallback((boxId: number) => {
     const box = app.boxes.find(b => b.id === boxId);

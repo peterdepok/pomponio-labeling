@@ -8,6 +8,7 @@ queued for retry via the existing email_queue module.
 """
 
 import csv
+import glob
 import io
 import json
 import logging
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _AUDIT_PATH = os.path.join(_PROJECT_ROOT, "data", "audit_log.json")
+_ARCHIVE_DIR = os.path.join(_PROJECT_ROOT, "data", "audit_archive")
 
 _lock = threading.Lock()
 
@@ -70,15 +72,77 @@ def read_events() -> list[dict]:
         return _read_events()
 
 
+def _archive_events(events: list[dict]) -> str | None:
+    """Write events to a timestamped JSON archive file.
+
+    Archives are stored in data/audit_archive/ with filenames like
+    ``audit_2025-01-15.json``. If an archive for the same date already
+    exists, events are appended. Returns the archive path on success,
+    None on failure. Failures are logged but never raised; the rotation
+    must proceed regardless.
+    """
+    if not events:
+        return None
+    try:
+        os.makedirs(_ARCHIVE_DIR, exist_ok=True)
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        path = os.path.join(_ARCHIVE_DIR, f"audit_{date_str}.json")
+
+        # Append to existing archive if present (same-day second rotation)
+        existing: list[dict] = []
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, list):
+                    existing = data
+            except (json.JSONDecodeError, OSError):
+                pass  # overwrite corrupt archive
+
+        existing.extend(events)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(existing, f, indent=2)
+
+        logger.info("Archived %d audit events to %s", len(events), path)
+        return path
+    except OSError as e:
+        logger.error("Failed to archive audit events: %s", e)
+        return None
+
+
+def _purge_old_archives(max_age_days: int = 30) -> None:
+    """Delete archive files older than max_age_days."""
+    try:
+        if not os.path.isdir(_ARCHIVE_DIR):
+            return
+        cutoff = time.time() - (max_age_days * 86400)
+        for path in glob.glob(os.path.join(_ARCHIVE_DIR, "audit_*.json")):
+            if os.path.getmtime(path) < cutoff:
+                os.remove(path)
+                logger.info("Purged old audit archive: %s", os.path.basename(path))
+    except OSError as e:
+        logger.warning("Archive purge error: %s", e)
+
+
 def rotate_log() -> list[dict]:
-    """Harvest all events and clear the log file.
+    """Harvest all events, archive to disk, then clear the log file.
+
+    Events are written to a timestamped archive file BEFORE the live
+    log is cleared. This guarantees events survive even if the
+    subsequent email send fails and the retry queue is lost.
 
     Returns:
         The list of events that were in the file before clearing.
     """
     with _lock:
         events = _read_events()
+        if events:
+            _archive_events(events)
         _write_events([])
+
+    # Housekeeping: purge archives older than 30 days
+    _purge_old_archives(30)
+
     return events
 
 

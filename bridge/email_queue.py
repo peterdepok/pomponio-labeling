@@ -3,6 +3,10 @@
 When email send fails (no internet, API down), the email is saved to a JSON
 file on disk. A daemon thread retries queued emails every `interval` seconds.
 Thread-safe via threading.Lock.
+
+Safeguards:
+    - Queue is capped at MAX_QUEUE_SIZE entries (oldest dropped on overflow).
+    - Entries older than TTL_SECONDS are purged during each retry cycle.
 """
 
 import json
@@ -13,6 +17,9 @@ import time
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
+
+MAX_QUEUE_SIZE = 100       # hard cap; oldest entries dropped on overflow
+TTL_SECONDS = 7 * 86_400   # 7 days; stale entries auto-purged
 
 # Resolve data directory relative to project root (parent of bridge/)
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -46,6 +53,10 @@ def _write_queue(queue: list[dict]) -> None:
 def enqueue(entry: dict) -> None:
     """Add an email to the retry queue.
 
+    If the queue already has MAX_QUEUE_SIZE entries, the oldest entry
+    is dropped to make room. This prevents unbounded disk growth when
+    the email API is unreachable for extended periods.
+
     Args:
         entry: Dict with keys: to, subject, csv_content, filename.
                A queued_at timestamp is added automatically.
@@ -54,6 +65,11 @@ def enqueue(entry: dict) -> None:
     with _lock:
         queue = _read_queue()
         queue.append(entry)
+        # Enforce cap: drop oldest entries until within limit
+        if len(queue) > MAX_QUEUE_SIZE:
+            dropped = len(queue) - MAX_QUEUE_SIZE
+            queue = queue[dropped:]
+            logger.warning("Email queue overflow: dropped %d oldest entries", dropped)
         _write_queue(queue)
     logger.info("Email queued for %s: %s (queue size: %d)",
                 entry.get("to"), entry.get("subject"), len(queue))
@@ -63,6 +79,27 @@ def get_queue_length() -> int:
     """Return the number of pending emails in the queue."""
     with _lock:
         return len(_read_queue())
+
+
+def _purge_expired(queue: list[dict]) -> list[dict]:
+    """Remove entries older than TTL_SECONDS. Returns the pruned list."""
+    now = datetime.now(timezone.utc)
+    kept: list[dict] = []
+    expired_count = 0
+    for entry in queue:
+        queued_at = entry.get("queued_at", "")
+        try:
+            ts = datetime.fromisoformat(queued_at)
+            if (now - ts).total_seconds() > TTL_SECONDS:
+                expired_count += 1
+                continue
+        except (ValueError, TypeError):
+            pass  # keep entries with unparsable timestamps
+        kept.append(entry)
+    if expired_count:
+        logger.info("Purged %d expired email(s) from queue (TTL=%dd)",
+                     expired_count, TTL_SECONDS // 86400)
+    return kept
 
 
 def _retry_loop(config, interval: float) -> None:
@@ -75,6 +112,12 @@ def _retry_loop(config, interval: float) -> None:
 
         with _lock:
             queue = _read_queue()
+
+            # Purge entries that have exceeded the 7-day TTL
+            pruned = _purge_expired(queue)
+            if len(pruned) != len(queue):
+                _write_queue(pruned)
+                queue = pruned
 
         if not queue:
             continue

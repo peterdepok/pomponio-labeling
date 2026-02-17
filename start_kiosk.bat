@@ -59,6 +59,23 @@ set RESTART_COUNT=0
 set MAX_RESTARTS=10
 
 :loop
+
+REM --- Log rotation: keep kiosk.log under 10 MB ---
+REM   If the file exceeds 10 485 760 bytes, archive the old log with
+REM   a timestamp suffix and start fresh. This prevents unbounded disk
+REM   usage on a kiosk that runs for months.
+if exist kiosk.log (
+    for %%A in (kiosk.log) do (
+        if %%~zA GTR 10485760 (
+            set "STAMP=%date:~-4%%date:~4,2%%date:~7,2%_%time:~0,2%%time:~3,2%"
+            set "STAMP=%STAMP: =0%"
+            copy kiosk.log "kiosk_%STAMP%.log" >nul 2>&1
+            echo. > kiosk.log
+            echo [%date% %time%] Log rotated (exceeded 10 MB^). Previous log archived. >> kiosk.log
+        )
+    )
+)
+
 if %RESTART_COUNT% GEQ %MAX_RESTARTS% (
     echo [%date% %time%] Max restarts (%MAX_RESTARTS%^) reached. Stopping watchdog. >> kiosk.log
     exit /b 1

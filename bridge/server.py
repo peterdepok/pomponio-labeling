@@ -76,8 +76,18 @@ def _get_scale() -> Scale:
 
 
 def scale_poll_loop() -> None:
-    """Background daemon: poll scale at SCALE_POLL_INTERVAL, cache reading."""
+    """Background daemon: poll scale at SCALE_POLL_INTERVAL, cache reading.
+
+    Uses exponential backoff on consecutive poll errors to reduce log
+    spam and CPU usage when the scale is disconnected or misbehaving.
+    Backoff steps: 0.2s -> 1s -> 2s -> 5s (capped). Resets to 0.2s
+    on the first successful read.
+    """
     scale = _get_scale()
+
+    # Backoff state: increases sleep interval on consecutive errors
+    _BACKOFF_STEPS = [SCALE_POLL_INTERVAL, 1.0, 2.0, 5.0]
+    consecutive_errors = 0
 
     while True:
         # Attempt connection if not connected
@@ -85,6 +95,7 @@ def scale_poll_loop() -> None:
             try:
                 scale.connect()
                 logger.info("Scale connected on %s", scale.port)
+                consecutive_errors = 0
                 with scale_lock:
                     latest_reading["error"] = None
             except ScaleError as e:
@@ -103,15 +114,23 @@ def scale_poll_loop() -> None:
                 latest_reading["stable"] = reading.stable
                 latest_reading["unit"] = reading.unit
                 latest_reading["error"] = None
+            consecutive_errors = 0
+            sleep_interval = SCALE_POLL_INTERVAL
         except ScaleError as e:
-            logger.warning("Scale poll error: %s", e)
+            consecutive_errors += 1
+            # Log at warning only on first error, then every 50th to reduce noise
+            if consecutive_errors == 1 or consecutive_errors % 50 == 0:
+                logger.warning("Scale poll error (x%d): %s", consecutive_errors, e)
             with scale_lock:
                 latest_reading["error"] = str(e)
             # If the serial connection broke, mark disconnected so we retry
             if scale._serial and not scale._serial.is_open:
                 scale._serial = None
+            # Exponential backoff: step up through the intervals
+            backoff_idx = min(consecutive_errors, len(_BACKOFF_STEPS) - 1)
+            sleep_interval = _BACKOFF_STEPS[backoff_idx]
 
-        time.sleep(SCALE_POLL_INTERVAL)
+        time.sleep(sleep_interval)
 
 
 def start_scale_poller() -> threading.Thread:
@@ -358,12 +377,19 @@ def api_export_csv():
 
 
 def _find_export_path(filename: str) -> str:
-    """Locate a USB drive or fall back to a local directory."""
+    """Locate a USB drive or fall back to a local directory.
+
+    On Windows, scans all drive letters D-Z for removable media using
+    the Win32 GetDriveTypeW API (DRIVE_REMOVABLE = 2). Returns the
+    first removable drive found. Falls back to a local directory if
+    no USB drive is present.
+    """
     if sys.platform == "win32":
         try:
-            # Check drives D: through G: for removable media
             DRIVE_REMOVABLE = 2
-            for letter in "DEFG":
+            # Scan all possible drive letters, not just D-G
+            for code in range(ord("D"), ord("Z") + 1):
+                letter = chr(code)
                 drive = f"{letter}:\\"
                 drive_type = ctypes.windll.kernel32.GetDriveTypeW(drive)
                 if drive_type == DRIVE_REMOVABLE and os.path.isdir(drive):
