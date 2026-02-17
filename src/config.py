@@ -128,3 +128,31 @@ class Config:
     @property
     def resend_from(self) -> str:
         return self.get("email", "from", fallback="Pomponio Ranch <onboarding@resend.dev>")
+
+    def validate(self) -> list[str]:
+        """Check configuration for common problems.
+
+        Returns a list of human-readable warning strings. An empty list
+        means no issues detected. Called by /api/health to surface
+        config problems to the operator.
+        """
+        warnings: list[str] = []
+
+        if not os.path.exists(self.config_path):
+            warnings.append("config.ini not found; using defaults. Printer and scale settings may be wrong.")
+
+        # Printer name: default "zebra" is almost certainly wrong
+        pn = self.printer_name
+        if pn == DEFAULT_CONFIG["printer"]["name"]:
+            warnings.append(f"Printer name is still default (\"{pn}\"). Check Settings.")
+
+        # Scale port: verify the COM port is plausible (COMn where n is a digit)
+        sp = self.scale_port
+        if not (sp.upper().startswith("COM") and sp[3:].isdigit()):
+            warnings.append(f"Scale port \"{sp}\" does not look like a valid COM port.")
+
+        # Email API key
+        if not self.resend_api_key:
+            warnings.append("Email API key is blank. Reports will not send.")
+
+        return warnings

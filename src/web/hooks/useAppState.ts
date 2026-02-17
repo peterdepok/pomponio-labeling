@@ -93,6 +93,10 @@ export function useAppState() {
   const [currentBoxId, setCurrentBoxId] = useState<number | null>(hydrated.currentBoxId);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
+  // Storage health: set to true if any localStorage write fails (quota exceeded).
+  // Exposed to the UI so a persistent warning banner can be displayed.
+  const [storageWarning, setStorageWarning] = useState(false);
+
   // One-time restore from disk backup: if localStorage was empty on mount
   // (no animals), attempt to recover from the Flask backup endpoint.
   const restoredRef = useRef(false);
@@ -147,18 +151,31 @@ export function useAppState() {
   // Wrapped in try/catch to survive quota exceeded errors on kiosk browsers.
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEYS.animals, JSON.stringify(animals)); }
-    catch { console.warn("localStorage write failed for animals"); }
-  }, [animals]);
+    try {
+      localStorage.setItem(STORAGE_KEYS.animals, JSON.stringify(animals));
+      if (storageWarning) setStorageWarning(false);
+    } catch {
+      console.warn("localStorage write failed for animals");
+      setStorageWarning(true);
+    }
+  }, [animals]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEYS.boxes, JSON.stringify(boxes)); }
-    catch { console.warn("localStorage write failed for boxes"); }
+    try {
+      localStorage.setItem(STORAGE_KEYS.boxes, JSON.stringify(boxes));
+    } catch {
+      console.warn("localStorage write failed for boxes");
+      setStorageWarning(true);
+    }
   }, [boxes]);
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEYS.packages, JSON.stringify(packages)); }
-    catch { console.warn("localStorage write failed for packages"); }
+    try {
+      localStorage.setItem(STORAGE_KEYS.packages, JSON.stringify(packages));
+    } catch {
+      console.warn("localStorage write failed for packages");
+      setStorageWarning(true);
+    }
   }, [packages]);
 
   useEffect(() => {
@@ -168,7 +185,10 @@ export function useAppState() {
       } else {
         localStorage.removeItem(STORAGE_KEYS.currentAnimalId);
       }
-    } catch { console.warn("localStorage write failed for currentAnimalId"); }
+    } catch {
+      console.warn("localStorage write failed for currentAnimalId");
+      setStorageWarning(true);
+    }
   }, [currentAnimalId]);
 
   useEffect(() => {
@@ -178,7 +198,10 @@ export function useAppState() {
       } else {
         localStorage.removeItem(STORAGE_KEYS.currentBoxId);
       }
-    } catch { console.warn("localStorage write failed for currentBoxId"); }
+    } catch {
+      console.warn("localStorage write failed for currentBoxId");
+      setStorageWarning(true);
+    }
   }, [currentBoxId]);
 
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -254,6 +277,12 @@ export function useAppState() {
   const closeBox = useCallback((boxId: number) => {
     setBoxes(prev =>
       prev.map(b => (b.id === boxId ? { ...b, closed: true } : b))
+    );
+    // Prune voided packages from the closed box. Once a box is closed,
+    // voided entries serve no UI purpose and would otherwise accumulate
+    // in state indefinitely, degrading performance over long sessions.
+    setPackages(prev =>
+      prev.filter(p => !(p.boxId === boxId && p.voided))
     );
   }, []);
 
@@ -382,6 +411,7 @@ export function useAppState() {
     currentBoxId,
     toast,
     showToast,
+    storageWarning,
     createAnimal,
     closeAnimal,
     getOpenAnimals,

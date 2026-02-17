@@ -412,15 +412,23 @@ BACKUP_PATH = os.path.join(PROJECT_ROOT, "exports", "state_backup.json")
 def api_backup():
     """Write a full state snapshot to disk for disaster recovery.
 
-    Overwrites the previous backup each time. This is called every 60
-    seconds by the frontend useAutoBackup hook.
+    Overwrites the previous backup each time. This is called every 15
+    seconds by the frontend useAutoBackup hook, and immediately after
+    critical events (package recorded, box closed).
+
+    Uses atomic write (temp file + os.replace) so a power loss
+    mid-write never corrupts the backup.
     """
     body = request.get_json(silent=True) or {}
 
     try:
         os.makedirs(os.path.dirname(BACKUP_PATH), exist_ok=True)
-        with open(BACKUP_PATH, "w", encoding="utf-8") as f:
+        tmp_path = BACKUP_PATH + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(body, f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, BACKUP_PATH)
         return jsonify({"ok": True})
     except OSError as e:
         logger.error("Backup write failed: %s", e)
@@ -444,7 +452,7 @@ def api_backup_restore():
 
 @app.route("/api/health", methods=["GET"])
 def api_health():
-    """Return connection status for scale, printer, and email queue."""
+    """Return connection status for scale, printer, email queue, and config."""
     scale = _get_scale()
     printer_name = config.printer_name
 
@@ -461,6 +469,7 @@ def api_health():
             "queue_length": get_queue_length(),
             "configured": bool(config.resend_api_key),
         },
+        "configWarnings": config.validate(),
     })
 
 

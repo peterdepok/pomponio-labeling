@@ -44,10 +44,20 @@ def _read_queue() -> list[dict]:
 
 
 def _write_queue(queue: list[dict]) -> None:
-    """Write the queue to disk, creating the data directory if needed."""
-    os.makedirs(os.path.dirname(_QUEUE_PATH), exist_ok=True)
-    with open(_QUEUE_PATH, "w", encoding="utf-8") as f:
+    """Write the queue to disk atomically.
+
+    Writes to a temporary file then replaces via os.replace() (atomic
+    on NTFS/ext4). If power is lost mid-write, the previous queue file
+    remains intact and no queued emails are lost.
+    """
+    dir_path = os.path.dirname(_QUEUE_PATH)
+    os.makedirs(dir_path, exist_ok=True)
+    tmp_path = _QUEUE_PATH + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(queue, f, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp_path, _QUEUE_PATH)
 
 
 def enqueue(entry: dict) -> None:

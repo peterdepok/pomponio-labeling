@@ -44,10 +44,20 @@ def _read_events() -> list[dict]:
 
 
 def _write_events(events: list[dict]) -> None:
-    """Write events to disk, creating directory if needed."""
-    os.makedirs(os.path.dirname(_AUDIT_PATH), exist_ok=True)
-    with open(_AUDIT_PATH, "w", encoding="utf-8") as f:
+    """Write events to disk atomically.
+
+    Writes to a temporary file in the same directory, then replaces the
+    target via os.replace() (atomic on NTFS/ext4). If power is lost
+    mid-write, the previous file remains intact.
+    """
+    dir_path = os.path.dirname(_AUDIT_PATH)
+    os.makedirs(dir_path, exist_ok=True)
+    tmp_path = _AUDIT_PATH + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(events, f, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp_path, _AUDIT_PATH)
 
 
 # ---------------------------------------------------------------------------

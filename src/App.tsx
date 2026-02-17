@@ -333,6 +333,27 @@ function App() {
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: "#0d0d1a" }}>
       <OfflineBanner />
+      {app.storageWarning && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 9998,
+            background: "linear-gradient(90deg, #e65100, #ff6d00)",
+            color: "#ffffff",
+            textAlign: "center",
+            padding: "10px 16px",
+            fontSize: 14,
+            fontWeight: 700,
+            letterSpacing: "0.05em",
+            boxShadow: "0 2px 12px rgba(230, 81, 0, 0.6)",
+          }}
+        >
+          STORAGE WARNING -- Browser storage is full. Data may not be saved. Close and reopen the current animal to free space.
+        </div>
+      )}
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} onExit={() => setShowExitConfirm(true)} />
 
       <main className="flex-1 overflow-hidden">
