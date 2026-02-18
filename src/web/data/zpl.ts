@@ -23,7 +23,7 @@ const LABEL_HEIGHT_DOTS = DPI * 4;  // 812
 // Physical position: ~0.4" from left edge, ~2.5" from top.
 const BARCODE_X = 55;
 const BARCODE_Y = 388;
-const BARCODE_MODULE_WIDTH = 2;    // 2-dot module; Code 128 subset C gives ~28mm total width
+const BARCODE_MODULE_WIDTH = 2;    // 2-dot module; with >: subset C prefix gives ~28mm total width
 const BARCODE_HEIGHT = 120;        // 15mm tall (120 dots at 203 DPI)
 
 // --- Product name zone (centered, where "GRASS-FED & FINISHED / WAGYU BEEF" sits) ---
@@ -103,7 +103,7 @@ export function generateLabelZpl(
     `^FO${BARCODE_X},${BARCODE_Y}`,
     `^BY${BARCODE_MODULE_WIDTH}`,           // module width
     `^BCN,${BARCODE_HEIGHT},Y,N,N`,         // Code 128: normal orientation, height, interpretation below, no check in data, no interpretation above
-    `^FD${barcode}^FS`,
+    `^FD>:${barcode}^FS`,                   // >: forces subset C start (digit-pair encoding, ~28mm vs ~47mm)
 
     // --- Product Name (cut), centered on label ---
     // Sits in the zone where the artwork shows "GRASS-FED & FINISHED / WAGYU BEEF"
@@ -172,7 +172,7 @@ export function generateBoxLabelZpl(
     `^FO${BARCODE_X},${BARCODE_Y}`,
     `^BY${BARCODE_MODULE_WIDTH}`,
     `^BCN,${BARCODE_HEIGHT},Y,N,N`,         // Code 128: normal orientation, height, interpretation below, no check in data, no interpretation above
-    `^FD${barcode}^FS`,
+    `^FD>:${barcode}^FS`,                   // >: forces subset C start (digit-pair encoding, ~28mm vs ~47mm)
 
     // --- Product Name with count (cut), centered on label ---
     `^FO0,${PRODUCT_NAME_Y}`,
