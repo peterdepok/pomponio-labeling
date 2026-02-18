@@ -56,7 +56,8 @@ export type AuditEventType =
   | "weight_override_forced"
   | "weight_manual_entry"
   | "audit_log_emailed"
-  | "audit_log_cleared";
+  | "audit_log_cleared"
+  | "settings_unlocked";
 
 // --- Payload map (discriminated by eventType) ---
 
@@ -95,6 +96,7 @@ export interface AuditPayloads {
   weight_manual_entry: { weightLb: number; sku: string; productName: string };
   audit_log_emailed: { recipient: string; entryCount: number };
   audit_log_cleared: { entryCount: number };
+  settings_unlocked: Record<string, never>;
 }
 
 // --- Entry stored in localStorage ---

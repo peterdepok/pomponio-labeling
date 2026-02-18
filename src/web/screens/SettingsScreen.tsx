@@ -217,6 +217,8 @@ const INPUT_STYLE: React.CSSProperties = {
 
 // --- Main component ---
 
+const SETTINGS_PASSCODE = "3450";
+
 export function SettingsScreen({
   settings,
   onSetSetting,
@@ -230,6 +232,21 @@ export function SettingsScreen({
   onClearAuditLog,
   logEvent,
 }: SettingsScreenProps) {
+  // --- Settings PIN lock ---
+  const [settingsUnlocked, setSettingsUnlocked] = useState(false);
+  const [showSettingsPasscode, setShowSettingsPasscode] = useState(false);
+
+  const handleSettingsPasscodeSubmit = (value: string) => {
+    if (value === SETTINGS_PASSCODE) {
+      setShowSettingsPasscode(false);
+      setSettingsUnlocked(true);
+      logEvent("settings_unlocked", {});
+    } else {
+      showToast("Incorrect passcode.", "error");
+      setShowSettingsPasscode(false);
+    }
+  };
+
   const [confirmAction, setConfirmAction] = useState<"reset" | "clear" | "update" | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [keyboardField, setKeyboardField] = useState<"email" | "printer" | "comPort" | "maxWeight" | "operator" | null>(null);
@@ -1132,6 +1149,56 @@ export function SettingsScreen({
           />
         </div>
       )}
+
+      {/* Settings PIN lock overlay */}
+      {!settingsUnlocked && (
+        <div
+          className="fixed inset-0 z-40 flex flex-col items-center justify-center"
+          style={{
+            background: "rgba(13, 13, 26, 0.97)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+          }}
+        >
+          <div
+            className="w-20 h-20 rounded-2xl mb-6 flex items-center justify-center"
+            style={{
+              background: "linear-gradient(145deg, #1e2240, #141428)",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
+              border: "2px solid #2a2a4a",
+            }}
+          >
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#ffa500" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+          <div className="text-2xl font-bold text-[#e8e8e8] mb-2">
+            Settings Locked
+          </div>
+          <div className="text-sm text-[#606080] mb-8 text-center px-8">
+            Enter passcode to access system settings.
+          </div>
+          <TouchButton
+            text="Enter Passcode"
+            style="primary"
+            size="lg"
+            onClick={() => setShowSettingsPasscode(true)}
+            width="280px"
+          />
+        </div>
+      )}
+
+      {/* Passcode gate for settings unlock */}
+      <KeyboardModal
+        isOpen={showSettingsPasscode}
+        title="Enter Settings Passcode"
+        initialValue=""
+        placeholder="****"
+        onConfirm={handleSettingsPasscodeSubmit}
+        onCancel={() => setShowSettingsPasscode(false)}
+        showNumbers
+      />
 
       {/* Full-screen overlay during update/restart/stale */}
       {(updateStatus === "applying" || updateStatus === "restarting" || updateStatus === "stale") && (
