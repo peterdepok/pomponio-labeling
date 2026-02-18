@@ -15,26 +15,26 @@ const DPI = 203;
 const LABEL_WIDTH_DOTS = DPI * 4;   // 812
 const LABEL_HEIGHT_DOTS = DPI * 4;  // 812
 
-// --- Barcode zone (lower-left of label, where FPO placeholder is in the artwork) ---
-// Physical position: ~0.4" from left, ~2.1" from top on the 4x4 label.
-// With ^POI (180° rotation), ZPL coords are mirrored: zplX = 812 - physX, zplY = 812 - physY.
-const BARCODE_X = 390;
-const BARCODE_Y = 270;
+// --- Barcode zone (lower-left, where the FPO placeholder sits in the artwork) ---
+// Coordinate system with ^POI: X increases left-to-right, Y increases top-to-bottom.
+// Physical position: ~0.4" from left edge, ~2.5" from top.
+const BARCODE_X = 55;
+const BARCODE_Y = 500;
 const BARCODE_MODULE_WIDTH = 3;    // 3-dot module for reliable scanning at arm's length
 const BARCODE_HEIGHT = 100;        // dots tall (about 0.49")
 
 // --- Product name zone (centered, where "GRASS-FED & FINISHED / WAGYU BEEF" sits) ---
-// Physical position: centered horizontally, ~1.4" from top.
-const PRODUCT_NAME_Y = 470;
+// Physical position: centered horizontally, ~1.35" from top.
+const PRODUCT_NAME_Y = 270;
 
 // --- Net weight zone (lower-right quadrant box in the artwork) ---
-// Physical center: ~3.1" from left, ~2.7" from top.
+// Physical center: ~3.0" from left, ~2.6" from top.
 // Using ^FB (field block) for center alignment within the zone.
-const WEIGHT_BLOCK_X = 10;         // left edge of centering block (right side of physical label)
-const WEIGHT_BLOCK_WIDTH = 300;    // width of centering block
-const WEIGHT_LABEL_Y = 220;
-const WEIGHT_VALUE_Y = 185;
-const WEIGHT_OZ_Y = 135;
+const WEIGHT_BLOCK_X = 480;
+const WEIGHT_BLOCK_WIDTH = 320;    // width of centering block
+const WEIGHT_LABEL_Y = 500;
+const WEIGHT_VALUE_Y = 535;
+const WEIGHT_OZ_Y = 590;
 
 /**
  * SKU-keyed overrides for printed product names.
