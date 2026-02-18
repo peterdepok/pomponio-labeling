@@ -15,27 +15,26 @@ const DPI = 203;
 const LABEL_WIDTH_DOTS = DPI * 4;   // 812
 const LABEL_HEIGHT_DOTS = DPI * 4;  // 812
 
-// --- Barcode zone (left side, vertically centered in the middle band) ---
-// The barcode sits roughly from x=30 to x=350, y=270 to y=480
-const BARCODE_X = 30;
-const BARCODE_Y = 385;
+// --- Barcode zone (lower-left of label, where FPO placeholder is in the artwork) ---
+// Physical position: ~0.4" from left, ~2.1" from top on the 4x4 label.
+// With ^POI (180° rotation), ZPL coords are mirrored: zplX = 812 - physX, zplY = 812 - physY.
+const BARCODE_X = 390;
+const BARCODE_Y = 270;
 const BARCODE_MODULE_WIDTH = 3;    // 3-dot module for reliable scanning at arm's length
 const BARCODE_HEIGHT = 100;        // dots tall (about 0.49")
 
-// "Keep Refrigerated or Frozen" is pre-printed below barcode, so we skip that.
+// --- Product name zone (centered, where "GRASS-FED & FINISHED / WAGYU BEEF" sits) ---
+// Physical position: centered horizontally, ~1.4" from top.
+const PRODUCT_NAME_Y = 470;
 
-// --- Product name zone (right of barcode) ---
-const PRODUCT_NAME_X = 440;        // right of barcode zone to prevent overlap
-const PRODUCT_NAME_Y = 300;
-
-// --- Net weight zone (centered above the pre-printed USDA bug in bottom-right) ---
-// USDA circle center is roughly x=660, y=700. Weight sits above it.
-// Using ^FB (field block) with ^FO for centering over the USDA stamp.
-const WEIGHT_BLOCK_X = 500;        // left edge of centering block
-const WEIGHT_BLOCK_WIDTH = 300;    // width of centering block (covers USDA area)
-const WEIGHT_LABEL_Y = 385;        // aligned with barcode Y for same visual row
-const WEIGHT_VALUE_Y = 420;
-const WEIGHT_OZ_Y = 475;          // pounds + ounces line below the decimal weight
+// --- Net weight zone (lower-right quadrant box in the artwork) ---
+// Physical center: ~3.1" from left, ~2.7" from top.
+// Using ^FB (field block) for center alignment within the zone.
+const WEIGHT_BLOCK_X = 10;         // left edge of centering block (right side of physical label)
+const WEIGHT_BLOCK_WIDTH = 300;    // width of centering block
+const WEIGHT_LABEL_Y = 220;
+const WEIGHT_VALUE_Y = 185;
+const WEIGHT_OZ_Y = 135;
 
 /**
  * SKU-keyed overrides for printed product names.
@@ -104,9 +103,10 @@ export function generateLabelZpl(
     `^FD${barcode}^FS`,
 
     // --- Product Name (cut), centered on label ---
+    // Sits in the zone where the artwork shows "GRASS-FED & FINISHED / WAGYU BEEF"
     `^FO0,${PRODUCT_NAME_Y}`,
-    "^A0N,50,50",                            // Font 0, normal rotation, 50 dot height/width (38 + 30%)
-    `^FB${LABEL_WIDTH_DOTS},1,0,C`,          // Field block: full label width, centered
+    "^A0N,45,45",                            // Font 0, normal rotation, 45 dot height/width
+    `^FB${LABEL_WIDTH_DOTS},2,0,C`,          // Field block: full label width, up to 2 lines, centered
     `^FD${displayName}^FS`,
 
     // --- Net Weight label (centered above USDA bug) ---
@@ -173,8 +173,8 @@ export function generateBoxLabelZpl(
 
     // --- Product Name with count (cut), centered on label ---
     `^FO0,${PRODUCT_NAME_Y}`,
-    "^A0N,50,50",
-    `^FB${LABEL_WIDTH_DOTS},1,0,C`,          // Field block: full label width, centered
+    "^A0N,45,45",
+    `^FB${LABEL_WIDTH_DOTS},2,0,C`,          // Field block: full label width, up to 2 lines, centered
     `^FD${displayName}^FS`,
 
     // --- Net Weight label (centered above USDA bug) ---
@@ -215,7 +215,7 @@ export const LABEL_PREVIEW = {
     heightIn: BARCODE_HEIGHT / DPI,
   },
   productName: {
-    xIn: PRODUCT_NAME_X / DPI,
+    xIn: 0,
     yIn: PRODUCT_NAME_Y / DPI,
     fontSizePt: 14,
   },
