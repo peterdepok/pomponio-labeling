@@ -15,5 +15,13 @@ log_level = INFO
 log_file = pomponio.log
 
 [email]
+# SMTP (primary transport). Use an app password, not the main account password.
+smtp_server = smtp-mail.outlook.com
+smtp_port = 587
+username = pomponiolabels2026@outlook.com
+password =
+from_name = Pomponio Ranch Labeling
+
+# Resend API (optional fallback). Only needed if SMTP is not configured.
 resend_api_key =
 from = Pomponio Ranch <onboarding@resend.dev>

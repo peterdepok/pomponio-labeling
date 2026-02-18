@@ -31,6 +31,11 @@ DEFAULT_CONFIG = {
     "email": {
         "resend_api_key": "",
         "from": "Pomponio Ranch <onboarding@resend.dev>",
+        "smtp_server": "smtp-mail.outlook.com",
+        "smtp_port": "587",
+        "username": "",
+        "password": "",
+        "from_name": "Pomponio Ranch Labeling",
     },
 }
 
@@ -133,6 +138,36 @@ class Config:
     def resend_from(self) -> str:
         return self.get("email", "from", fallback="Pomponio Ranch <onboarding@resend.dev>")
 
+    @property
+    def smtp_server(self) -> str:
+        return self.get("email", "smtp_server", fallback="smtp-mail.outlook.com")
+
+    @property
+    def smtp_port(self) -> int:
+        return self.get_int("email", "smtp_port", fallback=587)
+
+    @property
+    def smtp_username(self) -> str:
+        return self.get("email", "username", fallback="")
+
+    @property
+    def smtp_password(self) -> str:
+        return self.get("email", "password", fallback="")
+
+    @property
+    def smtp_from_name(self) -> str:
+        return self.get("email", "from_name", fallback="Pomponio Ranch Labeling")
+
+    @property
+    def smtp_configured(self) -> bool:
+        """True when SMTP credentials are present in config.ini."""
+        return bool(self.smtp_username and self.smtp_password)
+
+    @property
+    def email_configured(self) -> bool:
+        """True when any email sending method is available."""
+        return bool(self.resend_api_key) or self.smtp_configured
+
     def validate(self) -> list[str]:
         """Check configuration for common problems.
 
@@ -150,8 +185,9 @@ class Config:
         if not (sp.upper().startswith("COM") and sp[3:].isdigit()):
             warnings.append(f"Scale port \"{sp}\" does not look like a valid COM port.")
 
-        # Email API key
-        if not self.resend_api_key:
-            warnings.append("Email API key is blank. Reports will not send.")
+        # Email: need either Resend API key or SMTP credentials
+        if not self.email_configured:
+            warnings.append("No email credentials configured. Reports will not send. "
+                            "Set SMTP username/password or Resend API key in config.ini.")
 
         return warnings

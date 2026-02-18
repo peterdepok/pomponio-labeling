@@ -289,7 +289,7 @@ def api_print():
 
 @app.route("/api/email", methods=["POST"])
 def api_email():
-    """Send a CSV report via Resend API. Queues on failure for background retry.
+    """Send a CSV report via SMTP or Resend API. Queues on failure for background retry.
 
     Accepts optional `attachments` array for additional files alongside
     the primary csvContent/filename pair.
@@ -525,7 +525,8 @@ def api_health():
         },
         "email": {
             "queue_length": get_queue_length(),
-            "configured": bool(config.resend_api_key),
+            "configured": config.email_configured,
+            "transport": "smtp" if config.smtp_configured else ("resend" if config.resend_api_key else "none"),
         },
         "configWarnings": config.validate(),
     })
