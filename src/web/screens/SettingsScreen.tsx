@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from "react";
 import type { SettingsValues, ScaleMode, BaudRate } from "../hooks/useSettings.ts";
+import { saveSettingsToServer } from "../hooks/useSettings.ts";
 import type { AuditEntry, LogEventFn } from "../hooks/useAuditLog.ts";
 import { TouchButton } from "../components/TouchButton.tsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.tsx";
@@ -331,6 +332,7 @@ export function SettingsScreen({
     }
 
     touchRecentEmail(trimmed);
+    saveSettingsToServer();
     setShowAuditEmailPicker(false);
     setShowAuditEmailKeyboard(false);
     setAuditEmailSending(true);

@@ -7,6 +7,7 @@
 import { useState, useEffect, useRef } from "react";
 import { KeyboardModal } from "./KeyboardModal.tsx";
 import { TouchButton } from "./TouchButton.tsx";
+import { saveSettingsToServer } from "../hooks/useSettings.ts";
 
 const RECENT_KEY = "pomponio_recentOperators";
 const MAX_RECENT = 5;
@@ -77,6 +78,7 @@ export function OperatorGateModal({ isOpen, onConfirm }: OperatorGateModalProps)
 
   const handleSelect = (name: string) => {
     touchRecentOperator(name);
+    saveSettingsToServer();
     onConfirm(name);
   };
 
@@ -84,6 +86,7 @@ export function OperatorGateModal({ isOpen, onConfirm }: OperatorGateModalProps)
     const trimmed = value.trim();
     if (!trimmed) return;
     touchRecentOperator(trimmed);
+    saveSettingsToServer();
     setShowKeyboard(false);
     onConfirm(trimmed);
   };

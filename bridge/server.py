@@ -456,6 +456,58 @@ def api_backup_restore():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
+# ---------------------------------------------------------------------------
+# Settings persistence (survives Chrome profile deletion on kiosk restart)
+# ---------------------------------------------------------------------------
+
+SETTINGS_PATH = os.path.join(PROJECT_ROOT, "exports", "settings.json")
+
+
+@app.route("/api/settings", methods=["GET"])
+def api_settings_get():
+    """Return saved kiosk settings from disk.
+
+    The frontend stores settings in localStorage for fast reads, but
+    localStorage is wiped when the Chrome kiosk profile is deleted on
+    restart. This endpoint provides a durable copy that the frontend
+    can use to rehydrate localStorage after a reboot.
+
+    Returns {} if no settings file exists (first boot).
+    """
+    if not os.path.isfile(SETTINGS_PATH):
+        return jsonify({})
+
+    try:
+        with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
+            return jsonify(json.load(f))
+    except (OSError, json.JSONDecodeError) as e:
+        logger.warning("Settings read failed: %s", e)
+        return jsonify({})
+
+
+@app.route("/api/settings", methods=["POST"])
+def api_settings_post():
+    """Persist kiosk settings to disk.
+
+    Called by the frontend on every settings change. Atomic write
+    prevents corruption from power loss or crash mid-write.
+    """
+    body = request.get_json(silent=True) or {}
+
+    try:
+        os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
+        tmp = SETTINGS_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(body, f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, SETTINGS_PATH)
+        return jsonify({"ok": True})
+    except OSError as e:
+        logger.error("Settings write failed: %s", e)
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 @app.route("/api/health", methods=["GET"])
 def api_health():
     """Return connection status for scale, printer, email queue, and config."""
