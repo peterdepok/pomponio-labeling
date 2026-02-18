@@ -55,7 +55,7 @@ function App() {
 
   const workflow = useWorkflow();
   const app = useAppState();
-  const { settings, setSetting, resetToDefaults } = useSettings();
+  const { settings, setSetting, resetToDefaults, hydrated } = useSettings();
   const audit = useAuditLog(undefined, settings.operatorName || undefined);
   const { auditSyncOk } = audit;
   const speed = useSpeedTracker({ threshold: 4 });
@@ -597,7 +597,7 @@ function App() {
 
       {/* Operator identification gate */}
       <OperatorGateModal
-        isOpen={!settings.operatorName}
+        isOpen={hydrated && !settings.operatorName}
         onConfirm={handleOperatorConfirm}
       />
 

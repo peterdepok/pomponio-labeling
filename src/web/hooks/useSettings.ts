@@ -182,20 +182,28 @@ export interface UseSettingsReturn {
   settings: SettingsValues;
   setSetting: <K extends keyof SettingsValues>(key: K, value: SettingsValues[K]) => void;
   resetToDefaults: () => void;
+  /** True once server-side settings have been fetched and merged into localStorage. */
+  hydrated: boolean;
 }
 
 export function useSettings(): UseSettingsReturn {
   const [settings, setSettings] = useState<SettingsValues>(initSettings);
-  const hydratedRef = useRef(false);
+  const [hydrated, setHydrated] = useState(false);
+  const fetchedRef = useRef(false);
 
   // After mount, fetch server settings and fill any localStorage gaps.
   // This restores settings that were lost when the Chrome profile was deleted.
+  // `hydrated` flips to true once the fetch resolves (or fails), so downstream
+  // components can defer rendering until settings are known.
   useEffect(() => {
-    if (hydratedRef.current) return;
-    hydratedRef.current = true;
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
 
     loadFromServer().then(serverData => {
-      if (!serverData) return;
+      if (!serverData) {
+        setHydrated(true);
+        return;
+      }
 
       const updates: Partial<SettingsValues> = {};
 
@@ -232,6 +240,9 @@ export function useSettings(): UseSettingsReturn {
       if (Object.keys(updates).length > 0) {
         setSettings(prev => ({ ...prev, ...updates }));
       }
+      setHydrated(true);
+    }).catch(() => {
+      setHydrated(true);
     });
   }, []);
 
@@ -263,5 +274,5 @@ export function useSettings(): UseSettingsReturn {
     saveSettingsToServer();
   }, [settings.deviceId]);
 
-  return { settings, setSetting, resetToDefaults };
+  return { settings, setSetting, resetToDefaults, hydrated };
 }
