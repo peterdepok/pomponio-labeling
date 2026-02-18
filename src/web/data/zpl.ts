@@ -19,22 +19,22 @@ const LABEL_HEIGHT_DOTS = DPI * 4;  // 812
 // Coordinate system with ^POI: X increases left-to-right, Y increases top-to-bottom.
 // Physical position: ~0.4" from left edge, ~2.5" from top.
 const BARCODE_X = 55;
-const BARCODE_Y = 420;
+const BARCODE_Y = 404;
 const BARCODE_MODULE_WIDTH = 3;    // 3-dot module for reliable scanning at arm's length
 const BARCODE_HEIGHT = 100;        // dots tall (about 0.49")
 
 // --- Product name zone (centered, where "GRASS-FED & FINISHED / WAGYU BEEF" sits) ---
 // Physical position: centered horizontally, ~1.35" from top.
-const PRODUCT_NAME_Y = 254;
+const PRODUCT_NAME_Y = 238;
 
 // --- Net weight zone (lower-right quadrant box in the artwork) ---
 // Physical center: ~3.0" from left, ~2.6" from top.
 // Using ^FB (field block) for center alignment within the zone.
 const WEIGHT_BLOCK_X = 480;
 const WEIGHT_BLOCK_WIDTH = 320;    // width of centering block
-const WEIGHT_LABEL_Y = 580;
-const WEIGHT_VALUE_Y = 615;
-const WEIGHT_OZ_Y = 670;
+const WEIGHT_LABEL_Y = 596;
+const WEIGHT_VALUE_Y = 631;
+const WEIGHT_OZ_Y = 686;
 
 /**
  * SKU-keyed overrides for printed product names.
