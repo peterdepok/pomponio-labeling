@@ -23,7 +23,7 @@ interface OnScreenKeyboardProps {
 }
 
 const NUMBER_ROW = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
-const SYMBOL_ROW = ["@", ".", "-", "_", "/", ":"];
+const SYMBOL_ROW = ["@", ".", ",", "-", "_", "/", ":"];
 
 const LETTER_ROWS = [
   ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],

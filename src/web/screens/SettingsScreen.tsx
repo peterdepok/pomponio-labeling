@@ -957,6 +957,7 @@ export function SettingsScreen({
         title="Report Email Recipients"
         initialValue={emailDraft}
         placeholder="email1@example.com, email2@example.com"
+        showNumbers
         showSymbols
         onConfirm={(val) => {
           const trimmed = val.trim().toLowerCase();
