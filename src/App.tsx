@@ -124,12 +124,8 @@ function App() {
   const handleGlobalScan = useCallback((barcode: string) => {
     try {
       const parsed = parseBarcode(barcode);
-      if (!parsed.valid) {
-        setScanPopup({ pkg: null, barcode, errorMessage: "Invalid check digit." });
-        return;
-      }
-      // Only handle individual package barcodes (quantity flag 0)
-      if (parsed.quantityFlag !== "0") {
+      // Only handle individual package barcodes (count = 1)
+      if (parsed.count !== 1) {
         setScanPopup({ pkg: null, barcode, errorMessage: "Box barcode. Use the Scanner tab for box audit." });
         return;
       }

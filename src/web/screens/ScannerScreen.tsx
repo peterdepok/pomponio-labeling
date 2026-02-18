@@ -61,12 +61,7 @@ export function ScannerScreen({
     try {
       const parsed = parseBarcode(barcode);
 
-      if (!parsed.valid) {
-        setScanMode({ mode: "not-found", barcode, message: "Invalid check digit." });
-        return;
-      }
-
-      if (parsed.quantityFlag === "0") {
+      if (parsed.count === 1) {
         // Individual package barcode
         const pkg = packages.find(p => p.barcode === barcode);
         if (pkg) {
@@ -78,10 +73,8 @@ export function ScannerScreen({
         // Box summary barcode: find matching box by SKU and weight
         const sku = parsed.sku;
         const targetWeight = parsed.weightLb;
-        // Tolerance accounts for cumulative rounding across split box labels.
-        // A box with 9 items averaging 1.12 lb each can drift ~0.04 lb per label
-        // from barcode encoding (hundredths precision). 0.5 lb covers realistic
-        // accumulation across multi-label splits.
+        // Tolerance for weight matching: barcode encodes weight in hundredths of lb,
+        // so small rounding differences are expected when comparing to actual totals.
         const tolerance = 0.5;
 
         let foundBox: Box | null = null;
@@ -518,7 +511,7 @@ export function ScannerScreen({
         isOpen={showManualKeyboard}
         title="Enter Barcode"
         initialValue=""
-        placeholder="12-digit barcode"
+        placeholder="14-digit barcode"
         showNumbers
         onConfirm={(val) => {
           setShowManualKeyboard(false);

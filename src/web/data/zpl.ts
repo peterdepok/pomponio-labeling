@@ -1,9 +1,12 @@
 /**
  * ZPL label generator for Zebra ZP 230D (203 DPI).
  * Pre-printed 4x4" label stock. System prints three dynamic fields:
- *   1. UPC-A barcode (middle-left zone)
+ *   1. Code 128 barcode (middle-left zone)
  *   2. Product name (right of barcode)
  *   3. Net weight in lb (middle-right zone, below product name)
+ *
+ * Barcode format: 14-digit all-numeric string encoded as Code 128.
+ * The printer auto-selects subset C for digit pairs, yielding compact encoding.
  *
  * Coordinate reference (203 DPI, 812 x 812 dots):
  *   Top ~250 dots: pre-printed logo + company info
@@ -20,8 +23,8 @@ const LABEL_HEIGHT_DOTS = DPI * 4;  // 812
 // Physical position: ~0.4" from left edge, ~2.5" from top.
 const BARCODE_X = 55;
 const BARCODE_Y = 388;
-const BARCODE_MODULE_WIDTH = 3;    // 3-dot module for reliable scanning at arm's length
-const BARCODE_HEIGHT = 100;        // dots tall (about 0.49")
+const BARCODE_MODULE_WIDTH = 2;    // 2-dot module; Code 128 subset C gives ~28mm total width
+const BARCODE_HEIGHT = 120;        // 15mm tall (120 dots at 203 DPI)
 
 // --- Product name zone (centered, where "GRASS-FED & FINISHED / WAGYU BEEF" sits) ---
 // Physical position: centered horizontally, ~1.35" from top.
@@ -59,7 +62,7 @@ function printName(productName: string, sku?: string): string {
 /**
  * Generate ZPL for the dynamic portion of the Pomponio Ranch 4x4 label.
  *
- * @param barcode   12-digit UPC-A barcode string
+ * @param barcode   14-digit barcode string (Code 128)
  * @param productName   Human-readable product name (e.g. "Ribeye Steak")
  * @param weightLb  Net weight in pounds
  * @param options.darkness  ZPL print darkness (0-30)
@@ -96,7 +99,7 @@ export function generateLabelZpl(
     `^LL${LABEL_HEIGHT_DOTS}`,
     "^POI",                                  // Invert orientation (180 degrees) for ZP 230D feed direction
 
-    // --- UPC-A Barcode ---
+    // --- Code 128 Barcode ---
     `^FO${BARCODE_X},${BARCODE_Y}`,
     `^BY${BARCODE_MODULE_WIDTH}`,           // module width
     `^BCN,${BARCODE_HEIGHT},Y,N,N`,         // Code 128: normal orientation, height, interpretation below, no check in data, no interpretation above
@@ -165,7 +168,7 @@ export function generateBoxLabelZpl(
     `^LL${LABEL_HEIGHT_DOTS}`,
     "^POI",                                  // Invert orientation (180 degrees) for ZP 230D feed direction
 
-    // --- UPC-A Barcode ---
+    // --- Code 128 Barcode ---
     `^FO${BARCODE_X},${BARCODE_Y}`,
     `^BY${BARCODE_MODULE_WIDTH}`,
     `^BCN,${BARCODE_HEIGHT},Y,N,N`,         // Code 128: normal orientation, height, interpretation below, no check in data, no interpretation above

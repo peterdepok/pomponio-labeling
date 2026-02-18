@@ -1,7 +1,7 @@
 /**
  * Box management screen.
  * Card-elevated boxes with left border stripe (green open, gray closed).
- * On close: generates box summary labels (one per SKU, split at 9),
+ * On close: generates box summary labels (one per SKU),
  * shows preview, then prints ZPL to Zebra and finalizes the box.
  * Closed boxes can be reopened (to add items) or reprinted (labels only).
  */

@@ -1,7 +1,11 @@
 /**
- * UPC-A barcode generation matching Python src/barcode.py exactly.
+ * Code 128 barcode generation for Pomponio Ranch weight-embedded labels.
  *
- * Format (12 digits): [0][5-digit SKU][5-digit weight x 100][check digit]
+ * Format (14 digits): [4-digit count][5-digit SKU][5-digit weight x 100]
+ *
+ * Individual packages use count 0001.
+ * Box labels use actual piece count (1-9999).
+ * No application-level check digit; Code 128 symbology provides its own.
  */
 
 export class BarcodeError extends Error {
@@ -9,25 +13,6 @@ export class BarcodeError extends Error {
     super(message);
     this.name = "BarcodeError";
   }
-}
-
-export function calculateCheckDigit(digits11: string): number {
-  if (digits11.length !== 11 || !/^\d{11}$/.test(digits11)) {
-    throw new BarcodeError(`Check digit input must be exactly 11 digits, got: '${digits11}'`);
-  }
-
-  let oddSum = 0;
-  let evenSum = 0;
-  for (let i = 0; i < 11; i++) {
-    const d = parseInt(digits11[i], 10);
-    if (i % 2 === 0) {
-      oddSum += d;
-    } else {
-      evenSum += d;
-    }
-  }
-  const total = oddSum * 3 + evenSum;
-  return (10 - (total % 10)) % 10;
 }
 
 export function validateSku(sku: string): string {
@@ -57,28 +42,32 @@ export function encodeWeight(weightLb: number): string {
   return hundredths.toString().padStart(5, "0");
 }
 
-export function generateBarcode(sku: string, weightLb: number): string {
-  const sku5 = validateSku(sku);
-  const weight5 = encodeWeight(weightLb);
-  const first11 = "0" + sku5 + weight5;
-  const check = calculateCheckDigit(first11);
-  return first11 + check.toString();
+function encodeCount(count: number): string {
+  if (count < 1 || count > 9999) {
+    throw new BarcodeError(`Count must be 1-9999, got: ${count}`);
+  }
+  return count.toString().padStart(4, "0");
 }
 
 /**
- * Generate a box summary barcode.
- * Format: [count 1-9][5-digit SKU][5-digit totalWeight x 100][check digit]
- * The leading digit is the item count (1-9) instead of 0.
+ * Generate a 14-digit barcode for an individual package label.
+ * Format: 0001 + SKU(5) + weight_encoded(5)
+ */
+export function generateBarcode(sku: string, weightLb: number): string {
+  const sku5 = validateSku(sku);
+  const weight5 = encodeWeight(weightLb);
+  return "0001" + sku5 + weight5;
+}
+
+/**
+ * Generate a 14-digit barcode for a box summary label.
+ * Format: count(4) + SKU(5) + weight_encoded(5)
  */
 export function generateBoxBarcode(sku: string, count: number, totalWeightLb: number): string {
-  if (count < 1 || count > 9) {
-    throw new BarcodeError(`Box barcode count must be 1-9, got: ${count}`);
-  }
+  const count4 = encodeCount(count);
   const sku5 = validateSku(sku);
   const weight5 = encodeWeight(totalWeightLb);
-  const first11 = count.toString() + sku5 + weight5;
-  const check = calculateCheckDigit(first11);
-  return first11 + check.toString();
+  return count4 + sku5 + weight5;
 }
 
 /**
@@ -94,8 +83,7 @@ export interface BoxLabel {
 
 /**
  * Given a list of packages in a box, generate box summary labels.
- * Groups by SKU. If a SKU group exceeds 9 items, splits into
- * multiple labels (max 9 per label) with weight proportionally divided.
+ * Groups by SKU. One label per SKU with full count and total weight.
  */
 export function generateBoxLabels(
   packages: Array<{ sku: string; productName: string; weightLb: number }>,
@@ -113,63 +101,41 @@ export function generateBoxLabels(
   const labels: BoxLabel[] = [];
 
   for (const [sku, group] of Object.entries(groups)) {
-    let remaining = group.count;
-    let remainingWeight = group.totalWeight;
+    // Round to 2 decimal places
+    const roundedWeight = Math.round(group.totalWeight * 100) / 100;
+    const barcode = generateBoxBarcode(sku, group.count, roundedWeight);
 
-    while (remaining > 0) {
-      const batch = Math.min(remaining, 9);
-      // Proportional weight: use remaining count and remaining weight
-      // so rounding errors don't accumulate across splits.
-      // The last batch gets whatever weight is left (avoids drift).
-      const isLastBatch = remaining - batch === 0;
-      const batchWeight = isLastBatch
-        ? remainingWeight
-        : (batch / remaining) * remainingWeight;
-      // Round to 2 decimal places
-      const roundedWeight = Math.round(batchWeight * 100) / 100;
-
-      const barcode = generateBoxBarcode(sku, batch, roundedWeight);
-
-      labels.push({
-        sku,
-        productName: group.productName,
-        count: batch,
-        weightLb: roundedWeight,
-        barcode,
-      });
-
-      remaining -= batch;
-      remainingWeight -= roundedWeight;
-    }
+    labels.push({
+      sku,
+      productName: group.productName,
+      count: group.count,
+      weightLb: roundedWeight,
+      barcode,
+    });
   }
 
   return labels;
 }
 
 export interface ParsedBarcode {
-  quantityFlag: string;
+  count: number;
   sku: string;
   weightEncoded: string;
   weightLb: number;
-  checkDigit: number;
-  valid: boolean;
 }
 
 export function parseBarcode(barcode: string): ParsedBarcode {
-  if (barcode.length !== 12 || !/^\d{12}$/.test(barcode)) {
-    throw new BarcodeError(`Barcode must be exactly 12 digits, got: '${barcode}'`);
+  if (barcode.length !== 14 || !/^\d{14}$/.test(barcode)) {
+    throw new BarcodeError(`Barcode must be exactly 14 digits, got: '${barcode}'`);
   }
 
-  const expectedCheck = calculateCheckDigit(barcode.slice(0, 11));
-  const actualCheck = parseInt(barcode[11], 10);
-  const weightHundredths = parseInt(barcode.slice(6, 11), 10);
+  const count = parseInt(barcode.slice(0, 4), 10);
+  const weightHundredths = parseInt(barcode.slice(9, 14), 10);
 
   return {
-    quantityFlag: barcode[0],
-    sku: barcode.slice(1, 6),
-    weightEncoded: barcode.slice(6, 11),
+    count,
+    sku: barcode.slice(4, 9),
+    weightEncoded: barcode.slice(9, 14),
     weightLb: weightHundredths / 100,
-    checkDigit: actualCheck,
-    valid: expectedCheck === actualCheck,
   };
 }
