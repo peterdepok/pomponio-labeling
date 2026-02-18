@@ -19,7 +19,7 @@ const LABEL_HEIGHT_DOTS = DPI * 4;  // 812
 // Coordinate system with ^POI: X increases left-to-right, Y increases top-to-bottom.
 // Physical position: ~0.4" from left edge, ~2.5" from top.
 const BARCODE_X = 55;
-const BARCODE_Y = 404;
+const BARCODE_Y = 388;
 const BARCODE_MODULE_WIDTH = 3;    // 3-dot module for reliable scanning at arm's length
 const BARCODE_HEIGHT = 100;        // dots tall (about 0.49")
 
