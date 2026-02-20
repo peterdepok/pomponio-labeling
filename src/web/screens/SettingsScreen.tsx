@@ -698,23 +698,6 @@ export function SettingsScreen({
           )}
 
           <div className="mt-4">
-            <FieldLabel text={`Stability Delay (${settings.scaleStabilityDelayMs} ms)`} />
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-[#606080]">500</span>
-              <input
-                type="range"
-                min="500"
-                max="5000"
-                step="100"
-                value={settings.scaleStabilityDelayMs}
-                onChange={e => onSetSetting("scaleStabilityDelayMs", Number(e.target.value))}
-                className="flex-1"
-              />
-              <span className="text-xs text-[#606080]">5000</span>
-            </div>
-          </div>
-
-          <div className="mt-4">
             <FieldLabel text="Max Weight (lb)" />
             <div
               onClick={() => setKeyboardField("maxWeight")}
