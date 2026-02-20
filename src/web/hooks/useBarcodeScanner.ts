@@ -16,7 +16,7 @@ interface UseBarcodeScannerOptions {
   onScan: (barcode: string) => void;
   /** Max milliseconds between keystrokes to count as scanner input (default 80). */
   maxIntervalMs?: number;
-  /** Minimum character length for a valid scan (default 14). */
+  /** Minimum character length for a valid scan (default 13 for EAN-13). */
   minLength?: number;
   /** When true, accept letters and digits. When false (default), digits only. */
   alphanumeric?: boolean;
@@ -30,7 +30,7 @@ export interface UseBarcodeScannerReturn {
 }
 
 export function useBarcodeScanner(options: UseBarcodeScannerOptions): UseBarcodeScannerReturn {
-  const { enabled, onScan, maxIntervalMs = 80, minLength = 14, alphanumeric = false } = options;
+  const { enabled, onScan, maxIntervalMs = 80, minLength = 13, alphanumeric = false } = options;
 
   const bufferRef = useRef<string>("");
   const lastKeystrokeRef = useRef<number>(0);

@@ -1,13 +1,19 @@
-"""Code 128 barcode generation for Pomponio Ranch weight-embedded labels.
+"""EAN-13 barcode generation for Pomponio Ranch weight-embedded labels.
 
-Barcode format (14 digits):
-    [4-digit count][5-digit SKU][5-digit weight x 100]
+Barcode format (13 digits):
+    [0][SKU padded to 6][weight*100 padded to 5][EAN-13 check digit]
 
-Positions 1-4:   Piece count (0001 for individual packages, actual count for boxes)
-Positions 5-9:   SKU from Pomponio price sheet (e.g., 00100)
-Positions 10-14: Weight in hundredths of a pound (1.52 lbs = 00152)
+Position 1:     Always 0 (system prefix)
+Positions 2-7:  SKU zero-padded to 6 digits
+Positions 8-12: Weight in hundredths of a pound (1.49 lb = 00149)
+Position 13:    EAN-13 check digit (auto-calculated)
 
-No application-level check digit; Code 128 symbology provides its own.
+Matches the processor's barcode system. Each sales channel (Shopify retail,
+wholesale, distributor) applies its own per-pound rate against the
+weight encoded in the barcode.
+
+Box labels use the same format with aggregate weight. The piece count
+is displayed in the printed label text but not encoded in the barcode.
 """
 
 import logging
@@ -67,41 +73,55 @@ def encode_weight(weight_lb: float) -> str:
     return str(hundredths).zfill(5)
 
 
-def encode_count(count: int) -> str:
-    """Encode a piece count to a 4-digit string.
+def calculate_ean13_check_digit(digits_12: str) -> int:
+    """Calculate the EAN-13 check digit for a 12-digit data string.
+
+    Algorithm: multiply each of the 12 digits by alternating weights 1,3,1,3...
+    Sum the products. Check digit = (10 - (sum mod 10)) mod 10.
 
     Args:
-        count: Number of pieces (1-9999).
+        digits_12: Exactly 12 numeric digits.
 
     Returns:
-        Zero-padded 4-digit string.
+        Single check digit (0-9).
 
     Raises:
-        BarcodeError: If count is out of range.
+        BarcodeError: If input is not exactly 12 digits.
     """
-    if count < 1 or count > 9999:
-        raise BarcodeError(f"Count must be 1-9999, got: {count}")
-    return str(count).zfill(4)
+    if len(digits_12) != 12 or not digits_12.isdigit():
+        raise BarcodeError(
+            f"Check digit input must be exactly 12 digits, got: '{digits_12}'"
+        )
+
+    total = 0
+    for i, ch in enumerate(digits_12):
+        weight = 1 if i % 2 == 0 else 3
+        total += int(ch) * weight
+
+    return (10 - (total % 10)) % 10
 
 
 def generate_barcode(sku: str, weight_lb: float) -> str:
-    """Generate a 14-digit barcode for an individual package label.
+    """Generate a 13-digit EAN-13 barcode for an individual package label.
 
-    Format: 0001 + SKU(5) + weight_encoded(5)
+    Format: 0 + SKU(6) + weight_encoded(5) + check_digit(1)
 
     Args:
         sku: Pomponio SKU code (numeric, up to 5 digits).
         weight_lb: Net weight in pounds.
 
     Returns:
-        14-digit barcode string.
+        13-digit EAN-13 barcode string.
 
     Raises:
         BarcodeError: If SKU or weight is invalid.
     """
     sku_5 = validate_sku(sku)
+    sku_6 = sku_5.zfill(6)
     weight_5 = encode_weight(weight_lb)
-    barcode = "0001" + sku_5 + weight_5
+    data_12 = "0" + sku_6 + weight_5
+    check = calculate_ean13_check_digit(data_12)
+    barcode = data_12 + str(check)
 
     logger.debug(
         "Generated barcode: %s (SKU=%s, weight=%.2f lb)", barcode, sku, weight_lb
@@ -110,25 +130,30 @@ def generate_barcode(sku: str, weight_lb: float) -> str:
 
 
 def generate_box_barcode(sku: str, count: int, total_weight_lb: float) -> str:
-    """Generate a 14-digit barcode for a box summary label.
+    """Generate a 13-digit EAN-13 barcode for a box summary label.
 
-    Format: count(4) + SKU(5) + weight_encoded(5)
+    Same format as individual labels but with aggregate weight.
+    The count parameter is accepted for API compatibility but is NOT
+    encoded in the barcode (EAN-13 has no room for it). Count is
+    displayed in the printed label text instead.
 
     Args:
         sku: Pomponio SKU code (numeric, up to 5 digits).
-        count: Number of pieces in the box for this SKU (1-9999).
+        count: Number of pieces in the box for this SKU (not encoded in barcode).
         total_weight_lb: Total weight in pounds for this SKU group.
 
     Returns:
-        14-digit barcode string.
+        13-digit EAN-13 barcode string.
 
     Raises:
         BarcodeError: If any input is invalid.
     """
-    count_4 = encode_count(count)
     sku_5 = validate_sku(sku)
+    sku_6 = sku_5.zfill(6)
     weight_5 = encode_weight(total_weight_lb)
-    barcode = count_4 + sku_5 + weight_5
+    data_12 = "0" + sku_6 + weight_5
+    check = calculate_ean13_check_digit(data_12)
+    barcode = data_12 + str(check)
 
     logger.debug(
         "Generated box barcode: %s (SKU=%s, count=%d, weight=%.2f lb)",
@@ -138,27 +163,36 @@ def generate_box_barcode(sku: str, count: int, total_weight_lb: float) -> str:
 
 
 def parse_barcode(barcode: str) -> dict:
-    """Parse a 14-digit barcode into its components.
+    """Parse a 13-digit EAN-13 barcode into its components.
 
     Args:
-        barcode: 14-digit barcode string.
+        barcode: 13-digit EAN-13 barcode string.
 
     Returns:
-        Dict with keys: count, sku, weight_encoded, weight_lb.
+        Dict with keys: sku, weight_encoded, weight_lb, check_digit.
 
     Raises:
-        BarcodeError: If barcode is not exactly 14 digits.
+        BarcodeError: If barcode is not exactly 13 digits or check digit is invalid.
     """
-    if len(barcode) != 14 or not barcode.isdigit():
-        raise BarcodeError(f"Barcode must be exactly 14 digits, got: '{barcode}'")
+    if len(barcode) != 13 or not barcode.isdigit():
+        raise BarcodeError(f"Barcode must be exactly 13 digits, got: '{barcode}'")
 
-    count = int(barcode[0:4])
-    weight_hundredths = int(barcode[9:14])
+    data_12 = barcode[:12]
+    expected_check = calculate_ean13_check_digit(data_12)
+    actual_check = int(barcode[12])
+
+    if expected_check != actual_check:
+        raise BarcodeError(
+            f"Invalid check digit: expected {expected_check}, "
+            f"got {actual_check} in barcode '{barcode}'"
+        )
+
+    weight_hundredths = int(barcode[7:12])
     weight_lb = weight_hundredths / 100.0
 
     return {
-        "count": count,
-        "sku": barcode[4:9],
-        "weight_encoded": barcode[9:14],
+        "sku": barcode[1:7],
+        "weight_encoded": barcode[7:12],
         "weight_lb": weight_lb,
+        "check_digit": actual_check,
     }

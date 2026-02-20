@@ -61,56 +61,54 @@ export function ScannerScreen({
     try {
       const parsed = parseBarcode(barcode);
 
-      if (parsed.count === 1) {
-        // Individual package barcode
-        const pkg = packages.find(p => p.barcode === barcode);
-        if (pkg) {
-          setScanMode({ mode: "package-found", pkg });
-        } else {
-          setScanMode({ mode: "not-found", barcode, message: "Package not found in system." });
+      // EAN-13 has no count field. Try matching as individual package first,
+      // then fall back to box matching by SKU + weight.
+      const pkg = packages.find(p => p.barcode === barcode);
+      if (pkg) {
+        setScanMode({ mode: "package-found", pkg });
+        return;
+      }
+
+      // Not a known individual package barcode. Try box summary match.
+      const sku = parsed.sku;
+      const targetWeight = parsed.weightLb;
+      // Tolerance for weight matching: barcode encodes weight in hundredths of lb,
+      // so small rounding differences are expected when comparing to actual totals.
+      const tolerance = 0.5;
+
+      let foundBox: Box | null = null;
+      let foundAnimal: Animal | null = null;
+      let foundPkgs: Package[] = [];
+
+      for (const box of boxes) {
+        const boxPkgs = getAllPackagesForBox(box.id);
+        const skuPkgs = boxPkgs.filter(p => p.sku === sku && !p.voided);
+        const skuWeight = skuPkgs.reduce((s, p) => s + p.weightLb, 0);
+
+        if (Math.abs(skuWeight - targetWeight) <= tolerance && skuPkgs.length > 0) {
+          foundBox = box;
+          foundPkgs = boxPkgs; // all packages in box (including voided, for audit view)
+          foundAnimal = animals.find(a => a.id === box.animalId) ?? null;
+          break;
         }
+      }
+
+      if (foundBox && foundAnimal) {
+        logEvent("box_audited", {
+          boxId: foundBox.id,
+          boxNumber: foundBox.boxNumber,
+          packageCount: foundPkgs.filter(p => !p.voided).length,
+          voidedCount: foundPkgs.filter(p => p.voided).length,
+        });
+        setScanMode({
+          mode: "box-found",
+          boxId: foundBox.id,
+          box: foundBox,
+          animal: foundAnimal,
+          packages: foundPkgs,
+        });
       } else {
-        // Box summary barcode: find matching box by SKU and weight
-        const sku = parsed.sku;
-        const targetWeight = parsed.weightLb;
-        // Tolerance for weight matching: barcode encodes weight in hundredths of lb,
-        // so small rounding differences are expected when comparing to actual totals.
-        const tolerance = 0.5;
-
-        let foundBox: Box | null = null;
-        let foundAnimal: Animal | null = null;
-        let foundPkgs: Package[] = [];
-
-        for (const box of boxes) {
-          const boxPkgs = getAllPackagesForBox(box.id);
-          const skuPkgs = boxPkgs.filter(p => p.sku === sku && !p.voided);
-          const skuWeight = skuPkgs.reduce((s, p) => s + p.weightLb, 0);
-
-          if (Math.abs(skuWeight - targetWeight) <= tolerance && skuPkgs.length > 0) {
-            foundBox = box;
-            foundPkgs = boxPkgs; // all packages in box (including voided, for audit view)
-            foundAnimal = animals.find(a => a.id === box.animalId) ?? null;
-            break;
-          }
-        }
-
-        if (foundBox && foundAnimal) {
-          logEvent("box_audited", {
-            boxId: foundBox.id,
-            boxNumber: foundBox.boxNumber,
-            packageCount: foundPkgs.filter(p => !p.voided).length,
-            voidedCount: foundPkgs.filter(p => p.voided).length,
-          });
-          setScanMode({
-            mode: "box-found",
-            boxId: foundBox.id,
-            box: foundBox,
-            animal: foundAnimal,
-            packages: foundPkgs,
-          });
-        } else {
-          setScanMode({ mode: "not-found", barcode, message: "Box not found in system." });
-        }
+        setScanMode({ mode: "not-found", barcode, message: "Package not found in system." });
       }
     } catch {
       setScanMode({ mode: "not-found", barcode, message: "Invalid barcode format." });
@@ -511,7 +509,7 @@ export function ScannerScreen({
         isOpen={showManualKeyboard}
         title="Enter Barcode"
         initialValue=""
-        placeholder="14-digit barcode"
+        placeholder="13-digit barcode"
         showNumbers
         onConfirm={(val) => {
           setShowManualKeyboard(false);

@@ -123,17 +123,14 @@ function App() {
   // When a scan is detected, shows a popup with package details and void option.
   const handleGlobalScan = useCallback((barcode: string) => {
     try {
-      const parsed = parseBarcode(barcode);
-      // Only handle individual package barcodes (count = 1)
-      if (parsed.count !== 1) {
-        setScanPopup({ pkg: null, barcode, errorMessage: "Box barcode. Use the Scanner tab for box audit." });
-        return;
-      }
+      parseBarcode(barcode); // validate format and check digit
+      // EAN-13 has no count field. Try matching as individual package first.
       const pkg = app.packages.find(p => p.barcode === barcode) ?? null;
       if (pkg) {
         setScanPopup({ pkg, barcode });
       } else {
-        setScanPopup({ pkg: null, barcode, errorMessage: "Package not found in system." });
+        // Not a known individual package; could be a box barcode.
+        setScanPopup({ pkg: null, barcode, errorMessage: "Package not found. Use the Scanner tab for box audit." });
       }
     } catch {
       setScanPopup({ pkg: null, barcode, errorMessage: "Invalid barcode format." });

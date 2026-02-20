@@ -1,12 +1,13 @@
-"""Comprehensive tests for UPC-A barcode generation.
+"""Comprehensive tests for EAN-13 barcode generation.
 
 Tests cover:
-    - Check digit calculation against hand-verified values
+    - EAN-13 check digit calculation against hand-verified values
     - SKU validation and normalization
     - Weight encoding edge cases
-    - Full barcode generation
+    - Full barcode generation (13-digit EAN-13)
     - Barcode parsing and round-trip verification
-    - All 69 active beef SKUs from pomponio_skus.csv
+    - Verified processor barcodes (NY Strip 0000101000855, Flat Iron 0000125001494)
+    - All active beef SKUs from pomponio_skus.csv
     - Error conditions and boundary values
 """
 
@@ -16,65 +17,74 @@ import pytest
 
 from src.barcode import (
     BarcodeError,
-    calculate_check_digit,
+    calculate_ean13_check_digit,
     encode_weight,
     generate_barcode,
+    generate_box_barcode,
     parse_barcode,
     validate_sku,
 )
 
 
 # ---------------------------------------------------------------------------
-# Check digit calculation
+# EAN-13 check digit calculation
 # ---------------------------------------------------------------------------
 
 class TestCheckDigit:
-    """Test the UPC-A modulo 10 check digit algorithm."""
+    """Test the EAN-13 modulo 10 check digit algorithm."""
 
-    def test_prd_example_ribeye(self):
-        """PRD example: SKU 00100, 1.52 lbs -> 00010000152, check = 5."""
-        assert calculate_check_digit("00010000152") == 5
+    def test_processor_ny_strip(self):
+        """Verified processor barcode: SKU 101, 0.85 lb -> check digit 5."""
+        assert calculate_ean13_check_digit("000010100085") == 5
 
-    def test_known_upc_zero_check(self):
-        """When total mod 10 is 0, check digit is 0."""
-        # Construct a case: all zeros -> odd=0, even=0, total=0, check=0
-        assert calculate_check_digit("00000000000") == 0
+    def test_processor_flat_iron(self):
+        """Verified processor barcode: SKU 125, 1.49 lb -> check digit 4."""
+        assert calculate_ean13_check_digit("000012500149") == 4
 
-    def test_known_upc_check_9(self):
-        """Verify check digit 9 case."""
-        # 10000000000: odd=1+0+0+0+0+0=1, even=0+0+0+0+0=0, total=3, check=7
-        assert calculate_check_digit("10000000000") == 7
+    def test_all_zeros(self):
+        """All zeros -> sum=0, check=0."""
+        assert calculate_ean13_check_digit("000000000000") == 0
+
+    def test_known_check_1(self):
+        """Hand-calculated: 100000000000.
+        Weights: 1,3,1,3,1,3,1,3,1,3,1,3
+        Products: 1,0,0,0,0,0,0,0,0,0,0,0 = 1
+        check = (10 - 1) % 10 = 9
+        """
+        assert calculate_ean13_check_digit("100000000000") == 9
 
     def test_sequential_digits(self):
-        """01234567890: hand-calculated check digit."""
-        # Odd positions (0-indexed 0,2,4,6,8,10): 0,2,4,6,8,0 = 20, *3 = 60
-        # Even positions (0-indexed 1,3,5,7,9): 1,3,5,7,9 = 25
-        # Total = 85, check = (10-5)%10 = 5
-        assert calculate_check_digit("01234567890") == 5
+        """012345678901: hand-calculated.
+        Positions: 0,1,2,3,4,5,6,7,8,9,0,1
+        Weights:   1,3,1,3,1,3,1,3,1,3,1,3
+        Products:  0,3,2,9,4,15,6,21,8,27,0,3 = 98
+        check = (10 - 8) % 10 = 2
+        """
+        assert calculate_ean13_check_digit("012345678901") == 2
 
     def test_all_ones(self):
-        """11111111111: odd=6*3=18, even=5, total=23, check=7."""
-        assert calculate_check_digit("11111111111") == 7
+        """111111111111: sum = 6*1 + 6*3 = 6+18 = 24, check = 6."""
+        assert calculate_ean13_check_digit("111111111111") == 6
 
     def test_all_nines(self):
-        """99999999999: odd=54*3=162, even=45, total=207, check=3."""
-        assert calculate_check_digit("99999999999") == 3
+        """999999999999: sum = 6*9 + 6*27 = 54+162 = 216, check = 4."""
+        assert calculate_ean13_check_digit("999999999999") == 4
 
-    def test_wrong_length_raises(self):
+    def test_wrong_length_short_raises(self):
         with pytest.raises(BarcodeError):
-            calculate_check_digit("0010000015")  # 10 digits
+            calculate_ean13_check_digit("00001010008")  # 11 digits
 
-    def test_too_long_raises(self):
+    def test_wrong_length_long_raises(self):
         with pytest.raises(BarcodeError):
-            calculate_check_digit("000100001520")  # 12 digits
+            calculate_ean13_check_digit("0000101000850")  # 13 digits
 
     def test_non_digit_raises(self):
         with pytest.raises(BarcodeError):
-            calculate_check_digit("0010000015A")
+            calculate_ean13_check_digit("00001010008A")
 
     def test_empty_raises(self):
         with pytest.raises(BarcodeError):
-            calculate_check_digit("")
+            calculate_ean13_check_digit("")
 
 
 # ---------------------------------------------------------------------------
@@ -135,6 +145,12 @@ class TestEncodeWeight:
     def test_prd_example_0_75(self):
         assert encode_weight(0.75) == "00075"
 
+    def test_processor_ny_strip_0_85(self):
+        assert encode_weight(0.85) == "00085"
+
+    def test_processor_flat_iron_1_49(self):
+        assert encode_weight(1.49) == "00149"
+
     def test_minimum_weight(self):
         assert encode_weight(0.01) == "00001"
 
@@ -183,7 +199,6 @@ class TestEncodeWeight:
 
     def test_weight_resolution_005(self):
         """Scale resolution is 0.005 lb. Verify encoding at resolution boundaries."""
-        # 0.005 lb = 0.5 hundredths, rounds to 0, below minimum
         with pytest.raises(BarcodeError):
             encode_weight(0.005)
         assert encode_weight(0.01) == "00001"
@@ -200,44 +215,52 @@ class TestEncodeWeight:
 
 class TestGenerateBarcode:
 
-    def test_prd_example(self):
-        """SKU 00100, 1.52 lbs -> 000100001525."""
-        barcode = generate_barcode("00100", 1.52)
-        assert barcode == "000100001525"
-        assert len(barcode) == 12
+    def test_processor_ny_strip(self):
+        """Verified processor barcode: SKU 00101, 0.85 lb -> 0000101000855."""
+        barcode = generate_barcode("00101", 0.85)
+        assert barcode == "0000101000855"
+        assert len(barcode) == 13
         assert barcode.isdigit()
+
+    def test_processor_flat_iron(self):
+        """Verified processor barcode: SKU 00125, 1.49 lb -> 0000125001494."""
+        barcode = generate_barcode("00125", 1.49)
+        assert barcode == "0000125001494"
+        assert len(barcode) == 13
 
     def test_starts_with_zero(self):
         barcode = generate_barcode("00100", 1.0)
         assert barcode[0] == "0"
 
     def test_sku_embedded(self):
+        """SKU occupies positions 1-6 (zero-padded to 6 digits)."""
         barcode = generate_barcode("00143", 2.5)
-        assert barcode[1:6] == "00143"
+        assert barcode[1:7] == "000143"
 
     def test_weight_embedded(self):
+        """Weight occupies positions 7-11."""
         barcode = generate_barcode("00100", 2.5)
-        assert barcode[6:11] == "00250"
+        assert barcode[7:12] == "00250"
 
     def test_check_digit_valid(self):
         barcode = generate_barcode("00100", 1.52)
-        expected = calculate_check_digit(barcode[:11])
-        assert int(barcode[11]) == expected
+        expected = calculate_ean13_check_digit(barcode[:12])
+        assert int(barcode[12]) == expected
 
     def test_minimum_weight_barcode(self):
         barcode = generate_barcode("00100", 0.01)
-        assert len(barcode) == 12
-        assert barcode[6:11] == "00001"
+        assert len(barcode) == 13
+        assert barcode[7:12] == "00001"
 
     def test_heavy_cut(self):
         """A 14.5 lb prime rib roast."""
         barcode = generate_barcode("00156", 14.5)
-        assert barcode[1:6] == "00156"
-        assert barcode[6:11] == "01450"
+        assert barcode[1:7] == "000156"
+        assert barcode[7:12] == "01450"
 
     def test_short_sku_auto_padded(self):
         barcode = generate_barcode("100", 1.0)
-        assert barcode[1:6] == "00100"
+        assert barcode[1:7] == "000100"
 
     def test_invalid_sku_raises(self):
         with pytest.raises(BarcodeError):
@@ -249,6 +272,32 @@ class TestGenerateBarcode:
 
 
 # ---------------------------------------------------------------------------
+# Box barcode generation
+# ---------------------------------------------------------------------------
+
+class TestGenerateBoxBarcode:
+
+    def test_box_barcode_same_format(self):
+        """Box barcode uses same EAN-13 format, count is not encoded."""
+        barcode = generate_box_barcode("00101", 5, 4.25)
+        assert len(barcode) == 13
+        assert barcode[0] == "0"
+        assert barcode[1:7] == "000101"
+        assert barcode[7:12] == "00425"
+
+    def test_box_barcode_count_not_in_barcode(self):
+        """Different counts with same SKU and weight produce identical barcodes."""
+        b1 = generate_box_barcode("00101", 3, 2.55)
+        b2 = generate_box_barcode("00101", 7, 2.55)
+        assert b1 == b2
+
+    def test_box_barcode_check_digit(self):
+        barcode = generate_box_barcode("00125", 4, 5.96)
+        expected = calculate_ean13_check_digit(barcode[:12])
+        assert int(barcode[12]) == expected
+
+
+# ---------------------------------------------------------------------------
 # Barcode parsing
 # ---------------------------------------------------------------------------
 
@@ -256,28 +305,44 @@ class TestParseBarcode:
 
     def test_round_trip(self):
         """Generate, then parse, then verify all fields match."""
-        barcode = generate_barcode("00100", 1.52)
+        barcode = generate_barcode("00101", 0.85)
         parsed = parse_barcode(barcode)
-        assert parsed["quantity_flag"] == "0"
-        assert parsed["sku"] == "00100"
-        assert parsed["weight_lb"] == 1.52
+        assert parsed["sku"] == "000101"
+        assert parsed["weight_lb"] == 0.85
         assert parsed["check_digit"] == 5
-        assert parsed["valid"] is True
+
+    def test_processor_ny_strip(self):
+        """Parse the known processor barcode."""
+        parsed = parse_barcode("0000101000855")
+        assert parsed["sku"] == "000101"
+        assert parsed["weight_lb"] == 0.85
+        assert parsed["check_digit"] == 5
+
+    def test_processor_flat_iron(self):
+        """Parse the known processor barcode."""
+        parsed = parse_barcode("0000125001494")
+        assert parsed["sku"] == "000125"
+        assert parsed["weight_lb"] == 1.49
+        assert parsed["check_digit"] == 4
 
     def test_invalid_check_digit(self):
         """Manually corrupt the check digit."""
         barcode = generate_barcode("00100", 1.52)
-        corrupted = barcode[:11] + str((int(barcode[11]) + 1) % 10)
-        parsed = parse_barcode(corrupted)
-        assert parsed["valid"] is False
+        corrupted = barcode[:12] + str((int(barcode[12]) + 1) % 10)
+        with pytest.raises(BarcodeError, match="Invalid check digit"):
+            parse_barcode(corrupted)
 
-    def test_parse_wrong_length(self):
+    def test_parse_wrong_length_short(self):
         with pytest.raises(BarcodeError):
-            parse_barcode("00010000152")  # 11 digits
+            parse_barcode("000010100085")  # 12 digits
+
+    def test_parse_wrong_length_long(self):
+        with pytest.raises(BarcodeError):
+            parse_barcode("00001010008550")  # 14 digits
 
     def test_parse_non_digit(self):
         with pytest.raises(BarcodeError):
-            parse_barcode("00010000152X")
+            parse_barcode("000010100085X")
 
     def test_weight_extraction(self):
         barcode = generate_barcode("00100", 12.5)
@@ -287,11 +352,11 @@ class TestParseBarcode:
     def test_sku_extraction(self):
         barcode = generate_barcode("00145", 3.0)
         parsed = parse_barcode(barcode)
-        assert parsed["sku"] == "00145"
+        assert parsed["sku"] == "000145"
 
 
 # ---------------------------------------------------------------------------
-# All 69 active beef SKUs
+# All active beef SKUs
 # ---------------------------------------------------------------------------
 
 def load_beef_skus():
@@ -317,19 +382,17 @@ class TestAllBeefSkus:
     @pytest.mark.parametrize("sku", BEEF_SKUS)
     def test_barcode_generation_1lb(self, sku):
         barcode = generate_barcode(sku, 1.0)
-        assert len(barcode) == 12
+        assert len(barcode) == 13
         assert barcode.isdigit()
         assert barcode[0] == "0"
         parsed = parse_barcode(barcode)
-        assert parsed["valid"] is True
-        assert parsed["sku"] == sku.zfill(5)
+        assert parsed["sku"] == sku.zfill(5).zfill(6)
 
     @pytest.mark.parametrize("sku", BEEF_SKUS)
     def test_barcode_generation_typical_weight(self, sku):
         """Typical retail cut weight: 1.52 lbs."""
         barcode = generate_barcode(sku, 1.52)
         parsed = parse_barcode(barcode)
-        assert parsed["valid"] is True
         assert parsed["weight_lb"] == 1.52
 
     @pytest.mark.parametrize("sku", BEEF_SKUS)
@@ -337,7 +400,6 @@ class TestAllBeefSkus:
         """Heavy cut: 8.75 lbs."""
         barcode = generate_barcode(sku, 8.75)
         parsed = parse_barcode(barcode)
-        assert parsed["valid"] is True
         assert parsed["weight_lb"] == 8.75
 
     @pytest.mark.parametrize("sku", BEEF_SKUS)
@@ -346,8 +408,7 @@ class TestAllBeefSkus:
         weight = 3.33
         barcode = generate_barcode(sku, weight)
         parsed = parse_barcode(barcode)
-        assert parsed["valid"] is True
-        assert parsed["sku"] == sku.zfill(5)
+        assert parsed["sku"] == sku.zfill(5).zfill(6)
         assert parsed["weight_lb"] == 3.33
 
     def test_beef_sku_count(self):
@@ -367,15 +428,15 @@ class TestEdgeCases:
         for w in weights:
             barcode = generate_barcode("00100", w)
             parsed = parse_barcode(barcode)
-            assert parsed["valid"] is True
+            assert parsed["weight_lb"] == round(w * 100) / 100
 
     def test_every_check_digit_value(self):
         """Ensure we can produce barcodes with each check digit 0-9."""
         seen_checks = set()
         for sku_num in range(100, 200):
-            for weight_hundredths in range(1, 20):
+            for weight_hundredths in range(1, 50):
                 barcode = generate_barcode(str(sku_num), weight_hundredths / 100.0)
-                seen_checks.add(int(barcode[11]))
+                seen_checks.add(int(barcode[12]))
                 if len(seen_checks) == 10:
                     break
             if len(seen_checks) == 10:
@@ -396,11 +457,10 @@ class TestEdgeCases:
 
     def test_weight_precision_no_float_drift(self):
         """Common float precision issue: 0.1 + 0.2 != 0.3. Verify encoding."""
-        # 0.1 + 0.2 in float is 0.30000000000000004
         weight = 0.1 + 0.2
         encoded = encode_weight(weight)
         assert encoded == "00030"
 
     def test_sku_leading_zeros_preserved(self):
         barcode = generate_barcode("00001", 1.0)
-        assert barcode[1:6] == "00001"
+        assert barcode[1:7] == "000001"
