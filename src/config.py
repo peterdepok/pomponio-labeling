@@ -29,6 +29,9 @@ DEFAULT_CONFIG = {
         "log_file": "pomponio.log",
     },
     "email": {
+        "brevo_api_key": "",
+        "brevo_from_email": "",
+        "brevo_from_name": "Pomponio Ranch Labeling",
         "resend_api_key": "",
         "from": "Pomponio Ranch <onboarding@resend.dev>",
         "smtp_server": "smtp-mail.outlook.com",
@@ -131,6 +134,23 @@ class Config:
         return self.get("app", "log_file")
 
     @property
+    def brevo_api_key(self) -> str:
+        return self.get("email", "brevo_api_key", fallback="")
+
+    @property
+    def brevo_from_email(self) -> str:
+        return self.get("email", "brevo_from_email", fallback="")
+
+    @property
+    def brevo_from_name(self) -> str:
+        return self.get("email", "brevo_from_name", fallback="Pomponio Ranch Labeling")
+
+    @property
+    def brevo_configured(self) -> bool:
+        """True when Brevo API key and sender email are present."""
+        return bool(self.brevo_api_key and self.brevo_from_email)
+
+    @property
     def resend_api_key(self) -> str:
         return self.get("email", "resend_api_key")
 
@@ -166,7 +186,7 @@ class Config:
     @property
     def email_configured(self) -> bool:
         """True when any email sending method is available."""
-        return bool(self.resend_api_key) or self.smtp_configured
+        return self.brevo_configured or self.smtp_configured or bool(self.resend_api_key)
 
     def validate(self) -> list[str]:
         """Check configuration for common problems.
@@ -188,6 +208,6 @@ class Config:
         # Email: need either Resend API key or SMTP credentials
         if not self.email_configured:
             warnings.append("No email credentials configured. Reports will not send. "
-                            "Set SMTP username/password or Resend API key in config.ini.")
+                            "Set brevo_api_key, SMTP credentials, or Resend API key in config.ini.")
 
         return warnings

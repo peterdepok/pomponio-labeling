@@ -1,11 +1,12 @@
-"""Email sender with dual transport: SMTP (primary) and Resend API (optional).
+"""Email sender with triple transport: Brevo (primary), SMTP, and Resend API.
 
-Tries SMTP first when credentials are present in config.ini. Falls back to
-the Resend HTTP API if a resend_api_key is configured. At least one method
-must be configured or send_email returns an error.
+Transport priority:
+    1. Brevo (if brevo_api_key is set in config.ini) -- 300 free emails/day
+    2. SMTP  (if smtp username and password are set)  -- any SMTP provider
+    3. Resend API (if resend_api_key is set)           -- legacy fallback
 
-SMTP uses Python's built-in smtplib and email modules (no pip dependencies).
-Resend uses urllib.request (also stdlib). No external packages required.
+All transports use Python stdlib only (urllib.request, smtplib, email).
+No external packages required.
 """
 
 import base64
@@ -18,18 +19,95 @@ from email.message import EmailMessage
 
 logger = logging.getLogger(__name__)
 
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
+BREVO_TIMEOUT = 15        # seconds
 RESEND_API_URL = "https://api.resend.com/emails"
-RESEND_TIMEOUT = 10   # seconds
-SMTP_TIMEOUT = 15     # seconds
+RESEND_TIMEOUT = 10       # seconds
+SMTP_TIMEOUT = 15         # seconds
 
+
+# ---------- Brevo (formerly Sendinblue) ----------
+
+def _send_brevo(config, recipients: list[str], subject: str,
+                csv_content: str, filename: str,
+                extra_attachments: list[dict] | None = None) -> dict:
+    """Send email via the Brevo transactional email API.
+
+    Free tier: 300 emails/day, no recipient restrictions.
+    Sender email must be verified in the Brevo dashboard.
+    Attachments are base64-encoded inline in the JSON payload.
+    """
+    api_key = config.brevo_api_key
+    from_name = config.brevo_from_name
+    from_email = config.brevo_from_email
+
+    att_list = [
+        {
+            "name": filename,
+            "content": base64.b64encode(csv_content.encode("utf-8")).decode("ascii"),
+        }
+    ]
+    for extra in (extra_attachments or []):
+        att_list.append({
+            "name": extra["filename"],
+            "content": base64.b64encode(extra["content"].encode("utf-8")).decode("ascii"),
+        })
+
+    payload = {
+        "sender": {"name": from_name, "email": from_email},
+        "to": [{"email": addr} for addr in recipients],
+        "subject": subject,
+        "textContent": "Report attached.",
+        "attachment": att_list,
+    }
+
+    headers = {
+        "api-key": api_key,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "PomponioLabeling/1.0",
+    }
+
+    try:
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(BREVO_API_URL, data=data,
+                                     headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=BREVO_TIMEOUT) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+            logger.info("Email sent via Brevo to %s: %s (messageId=%s)",
+                        ", ".join(recipients), subject,
+                        body.get("messageId", "?"))
+            return {"ok": True}
+
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode("utf-8", errors="replace")
+        try:
+            error_json = json.loads(error_body)
+            error_msg = error_json.get("message", error_body)
+        except (json.JSONDecodeError, KeyError):
+            error_msg = error_body
+        logger.error("Brevo API error (%d): %s", e.code, error_msg)
+        return {"ok": False, "error": f"Brevo API error ({e.code}): {error_msg}"}
+
+    except urllib.error.URLError as e:
+        logger.error("Network error (Brevo): %s", e.reason)
+        return {"ok": False, "error": f"Network error: {e.reason}"}
+
+    except OSError as e:
+        logger.error("OS error (Brevo): %s", e)
+        return {"ok": False, "error": f"Network error: {e}"}
+
+
+# ---------- SMTP ----------
 
 def _send_smtp(config, recipients: list[str], subject: str,
                csv_content: str, filename: str,
                extra_attachments: list[dict] | None = None) -> dict:
-    """Send email via SMTP with STARTTLS (Outlook, Gmail, etc.).
+    """Send email via SMTP with STARTTLS.
 
-    Uses the app password from config.ini, not the main account password.
-    Microsoft Outlook requires app passwords for SMTP since late 2025.
+    Works with Gmail app passwords and any provider that still supports
+    basic SMTP AUTH. Microsoft consumer Outlook.com no longer supports
+    basic auth (requires OAuth2), so use Brevo instead for Outlook accounts.
     """
     server_host = config.smtp_server
     server_port = config.smtp_port
@@ -86,10 +164,16 @@ def _send_smtp(config, recipients: list[str], subject: str,
         return {"ok": False, "error": f"Network error: {e}"}
 
 
+# ---------- Resend (legacy fallback) ----------
+
 def _send_resend(config, recipients: list[str], subject: str,
                  csv_content: str, filename: str,
                  extra_attachments: list[dict] | None = None) -> dict:
-    """Send email via the Resend HTTP API (requires paid plan for custom domains)."""
+    """Send email via the Resend HTTP API.
+
+    Free tier only sends to the account holder's email. Kept as a
+    legacy fallback; prefer Brevo for new deployments.
+    """
     api_key = config.resend_api_key
     from_addr = config.resend_from
 
@@ -147,17 +231,20 @@ def _send_resend(config, recipients: list[str], subject: str,
         return {"ok": False, "error": f"Network error: {e}"}
 
 
+# ---------- Public entry point ----------
+
 def send_email(config, to: str, subject: str, csv_content: str, filename: str,
                *, attachments: list[dict] | None = None) -> dict:
     """Send an email with one or more CSV attachments.
 
     Transport priority:
-        1. SMTP (if smtp username and password are set in config.ini)
-        2. Resend API (if resend_api_key is set in config.ini)
-        3. Error (no transport configured)
+        1. Brevo   (if brevo_api_key is set in config.ini)
+        2. SMTP    (if smtp username and password are set)
+        3. Resend  (if resend_api_key is set)
+        4. Error   (no transport configured)
 
     Args:
-        config: Config instance with smtp_* and resend_* properties.
+        config: Config instance with brevo_*, smtp_*, and resend_* properties.
         to: Recipient email address(es), comma-separated for multiple.
         subject: Email subject line.
         csv_content: Raw CSV string for the primary attachment.
@@ -173,13 +260,17 @@ def send_email(config, to: str, subject: str, csv_content: str, filename: str,
     if not recipients:
         return {"ok": False, "error": "No valid recipient addresses"}
 
-    # Try SMTP first (free, no external service dependency)
+    # 1. Brevo (free 300/day, no recipient restrictions)
+    if config.brevo_configured:
+        return _send_brevo(config, recipients, subject, csv_content, filename, attachments)
+
+    # 2. SMTP (Gmail app passwords, etc.)
     if config.smtp_configured:
         return _send_smtp(config, recipients, subject, csv_content, filename, attachments)
 
-    # Fall back to Resend API
+    # 3. Resend API (legacy; free tier restricts recipients)
     if config.resend_api_key:
         return _send_resend(config, recipients, subject, csv_content, filename, attachments)
 
     return {"ok": False, "error": "No email transport configured. "
-            "Set SMTP username/password or Resend API key in config.ini."}
+            "Set brevo_api_key, SMTP credentials, or resend_api_key in config.ini."}
